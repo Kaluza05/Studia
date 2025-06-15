@@ -1,0 +1,16 @@
+typ odpowiada alternatywie
+
+G e |- t1
+_________
+G Left e |- t1 + t2 
+
+G e |- t2
+_________
+G Right e |- t1 + t2 
+
+G e |- t1 + t2  G x : t1 |- e1 : t G y : t2 |- e2 : t
+______________________________________________________
+G match e with {
+    Left x -> e1
+    Right y -> e2
+} : t
