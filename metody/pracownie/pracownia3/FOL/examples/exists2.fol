@@ -1,0 +1,5 @@
+theorem exists_sym:
+    (exists x, s(x) and d(x)) -> exists x, d(x) and s(x)
+proof
+    (fun (H : exists x, s(x) and d(x)) -> unpack [bob] ex from H in (pack [bob] (snd (ex) , fst (ex)) : exists x, d(x) and s(x)) )
+qed

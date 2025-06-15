@@ -1,0 +1,8 @@
+axiom refl  : ∀ x, x = x
+axiom subst : ∀ {z} x y, x = y → P(z) → P(y)
+
+theorem symm : ∀ x z, x = z → z = x
+proof
+  fun [x] [y] (eq : x = y) ->
+    subst {z | z = x} [x] [y] eq (refl [x])
+qed
