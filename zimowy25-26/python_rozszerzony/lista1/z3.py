@@ -1,13 +1,17 @@
+def flatten(xss : list[list])-> list:
+    return [x for xs in xss for x in xs]
+
 def tabliczka(x1,x2,y1,y2,d):
-    num_x = (x2 - x1) // d
-    num_y = (y2 - y1) // d
+    num_x = int((x2 - x1) // d)
+    num_y = int((y2 - y1) // d)
 
     xs = [x1 + i * d for i in range(num_x + 1)]
     ys = [y1 + i * d for i in range(num_y + 1)]
+    
+    table = {y : [str(x * y) for x in xs] for y in ys}
 
-    y_width = len(str(y2))
-    x_width = len(str(x2 * y2))
-
+    y_width = max(map(lambda x: len(str(x)), ys))
+    x_width = max(map(len,flatten(table.values())))
 
 
     print(' '* y_width + ' ' + ' '.join(map(lambda x : str(x).ljust(x_width) ,xs)))
@@ -18,4 +22,4 @@ def tabliczka(x1,x2,y1,y2,d):
         print(y_pad + ' ' + nums)
 
 
-tabliczka(3,8,2,6,2)
+tabliczka(3,7.5,2,6,1.5)
