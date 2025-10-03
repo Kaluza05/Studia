@@ -22,4 +22,5 @@ def tabliczka(x1,x2,y1,y2,d):
         print(y_pad + ' ' + nums)
 
 
+
 tabliczka(3,7.5,2,6,1.5)
