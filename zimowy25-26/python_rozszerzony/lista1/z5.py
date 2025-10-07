@@ -23,6 +23,8 @@ def common_prefix(words : list[str])-> str:
         if len(curr_prefix) > len(longest_prefix):
             longest_prefix = curr_prefix
 
+        tried_first.add(first_letter)
+
     return longest_prefix
                 
 print(common_prefix(["Cyprian", "cyberotoman", "cynik", "ceniąc", "czule"]))
