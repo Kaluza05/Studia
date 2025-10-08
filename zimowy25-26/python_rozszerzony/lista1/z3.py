@@ -14,11 +14,11 @@ def tabliczka(x1,x2,y1,y2,d):
     x_width = max(map(len,flatten(table.values())))
 
 
-    print(' '* y_width + ' ' + ' '.join(map(lambda x : str(x).ljust(x_width) ,xs)))
+    print(' '* y_width + ' ' + ' '.join(map(lambda x : str(x).rjust(x_width) ,xs)))
 
     for y in ys:
-        nums = ' '.join([str(x * y).ljust(x_width) for x in xs])
-        y_pad = str(y).ljust(y_width)
+        nums = ' '.join([str(x * y).rjust(x_width) for x in xs])
+        y_pad = str(y).rjust(y_width)
         print(y_pad + ' ' + nums)
 
 
