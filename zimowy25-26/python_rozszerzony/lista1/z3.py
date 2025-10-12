@@ -1,4 +1,4 @@
-def flatten(xss : list[list])-> list:
+def flatten(xss )-> list:
     return [x for xs in xss for x in xs]
 
 def tabliczka(x1,x2,y1,y2,d):
