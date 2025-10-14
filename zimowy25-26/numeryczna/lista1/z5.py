@@ -30,4 +30,3 @@ even()
 print('\nodd\n')
 uneven()
 
-#podobne wartosci ale nie takie same
