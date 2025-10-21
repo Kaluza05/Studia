@@ -1,4 +1,5 @@
 from itertools import product
+from copy import deepcopy
 
 def correct_board(b, v, w):
     n, m = len(v), len(w)
@@ -20,44 +21,48 @@ def cienie(v, w):
             yield to_board(b, len(v), len(w))
 
 
-
 def cienie_backtrack(v,w):
     n,m = len(v), len(w)
     b = [[0] * n for _ in range(m)]
     curr_rows = [0] * m
     curr_cols = [0] * n
-
-    correct_board_backtrack = lambda c_r, c_c : c_r == w and c_c == v
     solutions = []
 
     def search(row,col):
-        #if we got to the last position with no errors ( filled the whole map)
-        if row == m and col == n + 1:
-            solutions.append(b)
+        if col == n and row == m - 1:
+            if all(x == y for x, y in zip(curr_cols, v)) and all(x == y for x, y in zip(curr_rows, w)):
+                solutions.append(deepcopy(b))
+                yield b
             return
         
-        #got to the end of a row
-        if col == n+1:
-            row += 1
-
-        if b[row][col] != -1:
-            search(row,col + 1)
-            return 
+        if col == m:
+            yield from search(row + 1, 0)
+            return
         
-        #now
-        if can place :
-            b[row][col] = 1
-            search(row,col + 1)
-            b[row][col] = 0
+        if curr_cols[col] > v[col] or curr_rows[row] > w[row]:
+            return
+        
+
+        yield from search(row, col + 1)
+
+        curr_cols[col] += 1
+        curr_rows[row] += 1
+        b[row][col] = 1
+
+        yield from search(row,col + 1)
+
+        curr_cols[col] -= 1
+        curr_rows[row] -= 1
+        b[row][col] = 0
+
+        
             
-
         
-    print(b)
+    yield from search(0,0)
 
-v, w = (1,3,1), (2,2,1)
+v, w = (1,1,1,1,1,1,1), (1,1,1,1,1,1,1)
 
-cienie_backtrack(v,w)
 
-#for b in cienie(v, w):
-#    print(*b, sep = '\n')
-#    print()
+for b in cienie_backtrack(v,w):
+    print(*b, sep = '\n')
+    print()
