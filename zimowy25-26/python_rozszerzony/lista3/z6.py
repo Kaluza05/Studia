@@ -26,12 +26,10 @@ def cienie_backtrack(v,w):
     b = [[0] * n for _ in range(m)]
     curr_rows = [0] * m
     curr_cols = [0] * n
-    solutions = []
 
     def search(row,col):
         if col == n and row == m - 1:
             if all(x == y for x, y in zip(curr_cols, v)) and all(x == y for x, y in zip(curr_rows, w)):
-                solutions.append(deepcopy(b))
                 yield b
             return
         
