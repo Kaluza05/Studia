@@ -6,7 +6,7 @@ def sgn(x):
 
 def bisection_method(f,a0,b0,steps):
     a_sign = sgn(f(a0))
-    for i in range(steps):
+    for _ in range(steps):
         m = (a0 + b0)/2
         m_sign = sgn(f(m))
         if m_sign == a_sign:

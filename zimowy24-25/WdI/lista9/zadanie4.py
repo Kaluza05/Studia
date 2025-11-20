@@ -27,6 +27,6 @@ def init_knight(n:int,pos:tuple[int,int]):
     return None
 from time import time
 s = time()
-print(*init_knight(7,(0,0)),sep='\n')
+print(*init_knight(5,(0,0)),sep='\n')
 
 print(time()-s)

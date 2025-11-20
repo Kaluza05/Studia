@@ -27,3 +27,10 @@ tests  = [(1/(2*r), r) for r in range(2,10)] + [(r/2, (1/r)) for r in range(2,10
 
 for x0,a in tests:
     print(newton_method2(x0,a), a, 1/a**0.5)
+
+#too large
+tests  = [(3/(1*r), r) for r in range(2,10)] + [(r/2, (1/r)) for r in range(2,10)]
+
+print('wrong starting points')
+for x0,a in tests:
+    print(newton_method2(x0,a), a, 1/a**0.5)

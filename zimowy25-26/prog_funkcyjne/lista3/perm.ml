@@ -34,6 +34,7 @@ module Make(Key : OrderedType) : S with type key = Key.t = struct
   let id = (M.empty, M.empty) 
   let invert (perm,inv : t) : t = (inv, perm)
   let swap v1 v2 : t =
+    if Key.compare v1 v2 = 0 then id else
     let perm = M.(empty |> add v1 v2 |> add v2 v1) in
     (perm, perm)
 
@@ -47,6 +48,9 @@ module Make(Key : OrderedType) : S with type key = Key.t = struct
           | None -> None
           end) 
           m1 m2
+          
+(* wywalic jesli przechodzą na siebie*)
+
 
   let compose (p1,inv1) (p2, inv2) = 
     let perm = compose_maps p1 p2 in
@@ -54,6 +58,3 @@ module Make(Key : OrderedType) : S with type key = Key.t = struct
     perm,inv
   let compare (t1,_) (t2,_) = M.compare Key.compare t1 t2
 end
-
-
-

@@ -13,43 +13,16 @@ let rec string_of_formula f =
 let pp_print_formula fmtr f =
   Format.pp_print_string fmtr (string_of_formula f)
 
-
-module FormulaOrd = struct
-  type t = formula
-  let rec compare a b = 
-    match a,b with
-    | Bot, Bot -> 0
-    | Var x, Var y -> String.compare x y
-    | Var _, _ -> 1
-    | _ , Var _ -> -1
-    | Imp(p1,p2), Imp(p3,p4) -> let p = compare p1 p3 in if p = 0 then compare p2 p4 else p
-    | Imp _ , _ -> 1
-    | _ , Imp _ -> -1
-end
-
-module FSet = Set.Make(FormulaOrd)
-
-type judgement = FSet.t * formula
-
-type theorem = 
-  | Node of judgement
-  | Timpi of judgement * theorem
-  | Timpe of judgement * theorem * theorem
-  | Tfalse of judgement * theorem
+type theorem = {
+  assumpptions : formula list;
+  consequence : formula
+}
 
 (*twierdzenie nie musi być drzewem, wystarcza zalozenia i wniosek*)
-let real_assumptions (thm : theorem) : FSet.t = 
-  match thm with
-  | Node(f) | Timpi(f,_) | Timpe(f,_,_) | Tfalse(f,_) -> fst f
   
-let assumptions (thm : theorem) : formula list =
-  match thm with
-  | Node(f) | Timpi(f,_) | Timpe(f,_,_) | Tfalse(f,_) -> FSet.to_list (fst f)
+let assumptions (thm : theorem) : formula list = thm.assumpptions
 
-
-let consequence (thm : theorem) : formula = 
-  match thm with
-  | Node(f) | Timpi(f,_) | Timpe(f,_,_) | Tfalse(f,_) -> snd f
+let consequence (thm : theorem) : formula = thm.consequence
 
 let rec equal f1 f2 = 
   match f1, f2 with
@@ -78,21 +51,21 @@ let pp_print_theorem fmtr thm =
   pp_close_box fmtr ();
   pp_close_box fmtr ()
 
-let by_assumption f = Node( FSet.singleton f, f)
+let by_assumption f = {assumpptions = [f]; consequence = f}
 
-let imp_i f thm = Timpi(((FSet.remove f (real_assumptions thm)), Imp(f, consequence thm)) , thm )
-let imp_e th1 th2 =
-  match consequence th1, consequence th2 with
-  | Imp(f1,f2), f3 -> if equal f1 f3 
-    then Timpe((FSet.union (real_assumptions th1) (real_assumptions th2),f2), th1, th2) 
-    else failwith "wrong reasoning"
-  | _ -> failwith "wrong reasoning"
+let imp_i f thm = {assumpptions = List.filter (fun g -> g <> f) thm.assumpptions;
+                  consequence = Imp(f, thm.consequence)}
+let imp_e th1 th2 = 
+    match th1.consequence with
+    | Imp(f1,f2) -> if equal f1 (th2.consequence) then 
+      {assumpptions = List.fold_left (fun acc g -> if List.mem g acc then acc else g :: acc) th1.assumpptions th2.assumpptions;
+      consequence = th2.consequence}
+      else failwith "wrong reasoning"
+    | _          -> failwith "wrong reasoning"
 
-let bot_e f thm =
-  match consequence thm with
-  | Bot -> Tfalse((real_assumptions thm, f), thm)
-  | _ -> failwith "wrong reasoning"
-
+let bot_e f thm = match thm.consequence with
+  |  Bot -> {assumpptions = thm.assumpptions; consequence = f}
+  | _    -> failwith "wrong reasoning"
 
 
 
