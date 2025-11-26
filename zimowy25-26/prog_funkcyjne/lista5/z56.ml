@@ -68,13 +68,102 @@ let rec of_seqs x s1 s2 =
   match s1, s2 with
   | Nil,_ | _, Nil -> failwith "shouldn't be empty"
   | Cons(x1,s1'), Cons(x2,s2') -> 
-    {prev = lazy (of_seqs x1 (s1' ()) (Cons(x, fun () -> s2)));
+    lazy {prev =  (of_seqs x1 (s1' ()) (Cons(x, fun () -> s2)));
     elem = x;
-    next = lazy (of_seqs x2 (Cons(x, fun () -> s1)) (s2' ()))}
+    next =  (of_seqs x2 (Cons(x, fun () -> s1)) (s2' ()))}
 
-(* zeby sie nie rozwarstwaiala nalezy zrobic zeby trzymala fizycznie poprzednie obiekty 
-  listy można zamienić na seq, i zrobić cykliczny seq*)
+
 
 let int_list = 
   let pos_ints = (Seq.ints 1) in 
   lazy (of_seqs 0 (Seq.map (fun i -> -i )  pos_ints ()) (pos_ints ()))
+
+
+
+(*other implementation without branching*)
+
+(*s1 is going to be turned into prev
+  s2 into next
+  
+  mem1 is memory of previous prev
+  mem2 is memory of previous next
+
+  if mem_i is not None that means we dont have to compute it again, as that would make a new object and branch
+  *)
+
+let from_seq x s1 s2 = 
+  let open Seq in
+  let rec it x s1 s2 mem1 mem2 =
+    match s1, s2 with
+    | Nil, _ | _, Nil -> failwith "empty seq"
+    | Cons(x',s1'), Cons(x'',s2') -> 
+
+      begin match mem1,mem2 with
+      | Some(p), Some(n) ->
+        lazy {
+          prev = p;
+          elem = x;
+          next = n}
+
+      | Some(p), None -> 
+        let mem_prev = Cons(x,fun () -> s1) in
+        let rec self = 
+        lazy {
+          prev = p;                                  (*we know p so we use it*)
+          elem = x;
+          next = it x'' mem_prev (s2' ()) (Some self) None}    (*now in the empty hole we should put Some(the object we just calculated)*)
+        in self
+
+      | None, Some(n) ->
+        let mem_next = Cons(x,fun () -> s2) in
+        let rec self = 
+        lazy {
+          prev = it x'  (s1' ()) mem_next None (Some self);
+          elem = x;
+          next = n}
+        in self
+
+      | None, None -> 
+        let mem_next = Cons(x,fun () -> s2) in
+        let mem_prev = Cons(x,fun () -> s1) in
+        let rec self = 
+        lazy {
+          prev = it x'  (s1' ()) mem_next None (Some self);
+          elem = x;
+          next = it x'' mem_prev (s2' ()) (Some self) None}
+        in self
+
+      end
+
+  in it x s1 s2 None None
+
+let of_list (ls : 'a list) = 
+  match ls with
+  | [] -> failwith "should be empty"
+  | x :: xs' -> 
+    let ls' = xs' @ [x] in 
+    let rev_req = ls |> List.rev |> List.to_seq |> Seq.cycle in
+    let ls_seq = ls'             |> List.to_seq |> Seq.cycle in
+    from_seq x (ls_seq ()) (rev_req ())
+
+
+let int_list = 
+  let pos_ints = (Seq.ints 1) in 
+  (from_seq 0 (Seq.map (fun i -> -i )  pos_ints ()) (pos_ints ()))
+
+(*
+int_list == int_list |> prev |> next
+int_list == int_list |> next |> prev
+int_list == (int_list |> prev |> prev |> next |> next |> prev |> next)
+*)
+
+let cycle s = 
+  match s () with
+  | Seq.Nil ->  failwith "daaaa"
+  | _ ->
+  let rec it s' = 
+    match s' () with
+    | Seq.Nil -> it s
+    | Seq.Cons(x,s') -> Seq.Cons(x,fun () -> it s')
+
+  in it s

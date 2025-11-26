@@ -1,9 +1,30 @@
+(* type 'a t =
+  | Comp of ('a my_lazy -> 'a)
+  | Val  of 'a
+  | Computing 
+
+and 'a my_lazy = 'a t ref
+
+let force (cell : 'a my_lazy) : 'a =
+  match !cell with
+  | Computing -> failwith "value is currently being computed"
+  | Val (v)     -> v
+  | Comp(f)     -> 
+    cell := Computing;
+    let v = f x in
+    cell := Val(v);
+    v
+
+let fix (f : 'a my_lazy -> 'a) : 'a my_lazy = 
+  let cell = ref (Lazy f) in cell
+*)
+
 type 'a t =
   | Comp of (unit -> 'a)
   | Val  of 'a
   | Computing 
 
-and 'a my_lazy = 'a t ref
+type 'a my_lazy = 'a t ref
 
 let force (cell : 'a my_lazy) : 'a =
   match !cell with
@@ -20,7 +41,9 @@ let fix (f : 'a my_lazy -> 'a) : 'a my_lazy =
   cell := Comp(fun () -> f cell);
   cell
 
+(*could make stream more lazy
 
+zamienić ref Comp wszystkie w fix-a w filter,take_while itp.*)
 type 'a stream = Cons of 'a * 'a stream my_lazy
 
 let rec ones = Cons(1,ref (Comp(fun () -> ones)))

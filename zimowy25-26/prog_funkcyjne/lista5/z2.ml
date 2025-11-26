@@ -8,7 +8,7 @@ let fix_rect f x =
   let fixing g = f (apply g) in
   fixing (R fixing) x
 
-(* 2 - mutable state *)
+(* 2 - mutowalny stan *)
 
 let fix_ref f x = 
   let mem = ref (fun _ -> failwith "aaa") in
