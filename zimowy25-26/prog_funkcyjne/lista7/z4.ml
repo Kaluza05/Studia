@@ -11,26 +11,22 @@ module Err : sig
   val catch : 'a t -> (unit -> 'a t) -> 'a t
   val run : 'a t -> 'a option
 end = struct
-  type 'r ans = 'r
-  type 'a t = {run : 'r. ('a option -> 'r ans) -> 'r ans}
+  type 'r ans = 'r option
+  type 'a t = {run : 'r. ('a -> 'r ans) -> 'r ans}
 
-  let return (x : 'a) = {run = fun cont -> cont (Some x)}
+  let return (x : 'a) = {run = fun cont -> cont x}
   let bind (m : 'a t) (f : 'a -> 'b t) : 'b t = 
-    {run = fun cont -> m.run (fun a ->
-      match a with
-      | None   ->   cont None
-      | Some(a)->  (f a).run cont)}
+    {run = fun cont -> m.run (fun a -> (f a).run cont )}
 
+  let fail =  {run = fun cont -> None}
+  let run (a : 'a t) = a.run (fun a -> Some(a)) 
 
-  let fail =  {run = fun cont -> cont None}
-  let catch a failed = 
-    {run = fun cont -> a.run 
-    (fun a -> 
-      match a with
+  let catch (m : 'a t) (failed : unit -> 'a t) : 'a t = 
+    {run = fun cont -> 
+      match run m with
       | None -> (failed ()).run cont 
-      | Some a -> cont (Some a))}
+      | Some x -> cont x}
       
-  let run (a : 'a t) = a.run (fun a -> a)
 end
 
 
@@ -42,17 +38,15 @@ module BT : sig
 
   val run : 'a t -> 'a Seq.t
 end = struct
-  type 'r ans = 'r
-  type 'a t = {run : 'r. ('a Seq.t -> 'r ans) -> 'r ans}
+  type 'r ans = 'r Seq.t
+  type 'a t = {run : 'r. ('a -> 'r ans) -> 'r ans}
 
-  let return x = {run = fun cont -> cont (Seq.return x)}
-  let rec bind m f = 
-    {run = fun cont -> 
-      m.run (fun a -> cont (Seq.concat_map (fun a -> (f a).run (fun c' -> c')) a))}
+  let return x = {run = fun cont -> cont x}
+  let rec bind m f = {run = fun cont -> m.run (fun a -> (f a).run cont)}
 
-  let fail = {run = fun cont -> cont (Seq.empty)}
-  let flip = {run = fun cont -> cont (List.to_seq [true; false])}
-  let run m = m.run (fun a -> a)
+  let fail = {run = fun cont -> Seq.empty}
+  let flip = {run = fun cont -> Seq.append (cont true) (cont false)}
+  let run m = m.run (fun a -> Seq.return a)
 end
 
 open BT
@@ -89,16 +83,38 @@ module St(T : sig type t end) : sig
 
   val run : T.t -> 'a t -> 'a
 end = struct
-  type 'r ans = T.t * 'r
-  type 'a t = {run : 'r. ((T.t -> T.t * 'a) -> 'r ans) -> 'r ans}
-  (* {run : } *)
-  let return x = {run = fun cont -> cont (fun s -> s,x)}
-  let bind m f = 
-    {run = fun cont -> 
-      m.run (fun s -> fun s -> let t',a = s t in failwith "a")}
+  (* mozna przerobić na T.t -> 'r, bo nie potrzebujemy stanu już w monadzie kontynuacyjnej *)
+  type 'r ans = T.t -> T.t * 'r
+  type 'a t = {run : 'r. ('a -> 'r ans) -> 'r ans}
+  
+  let return x = {run = fun cont -> cont x}
+  let bind m f = {run = fun cont -> m.run (fun a -> (f a).run cont)}
 
-  let get = {run = fun cont -> cont (fun s -> s,s)}
-  let put s = {run = fun cont -> cont (fun _ -> s,() )}
+  let get = {run = fun cont -> fun s -> cont s s}
+  let put s = {run = fun cont _ -> cont () s}
 
-  let run s m = snd (m.run (fun cont ->  cont s))
+  let run (s : T.t) (m : 'a t) = snd (m.run (fun a t -> t,a) s)
+end
+
+
+
+module St2(T : sig type t end) : sig
+  include Monad
+
+  val get : T.t t
+  val put : T.t -> unit t
+
+  val run : T.t -> 'a t -> 'a
+end = struct
+  (* mozna przerobić na T.t -> 'r, bo nie potrzebujemy stanu już w monadzie kontynuacyjnej *)
+  type 'r ans = T.t -> 'r
+  type 'a t = {run : 'r. ('a -> 'r ans) -> 'r ans}
+  
+  let return x = {run = fun cont -> cont x}
+  let bind m f = {run = fun cont -> m.run (fun a -> (f a).run cont)}
+
+  let get = {run = fun cont -> fun s -> cont s s}
+  let put s = {run = fun cont _ -> cont () s}
+
+  let run (s : T.t) (m : 'a t) = m.run (fun a t -> a) s
 end

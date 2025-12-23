@@ -33,11 +33,10 @@ module RS : RandomMonad with type 'a t = int -> 'a * int = struct
   type 'a t = int -> 'a * int
 
   let return x = fun i -> x, i
-  let bind a f = fun i -> 
-    let x, i = a i in f x i
-  let random = fun a_i ->
+  let bind a f = fun i ->  let x, i = a i in f x i
+
+  let random = fun a ->
   let m = 2147483647 in
-  let a = a_i in
   let hi = a / 127773 in
   let lo = a mod 127773 in
   let b = 16807 * lo - 2836 * hi in

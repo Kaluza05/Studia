@@ -1,0 +1,14 @@
+{
+  "authors": [
+    {"name": "Boleslaw Prus"},
+    {"name": "Henryk Sienkiewicz"}
+  ],
+  "books": [
+    {"title": "Lalka", "year": 1890, "author": "Boleslaw Prus"},
+    {"title": "Ogniem i mieczem", "year": 1884, "author": "Henryk Sienkiewicz"}
+  ],
+  "people": [
+    {"name": "Kowalski", "email": "kowalski@gmail.com"},
+    {"name": "Nowak", "email": "nowak@uwr.edu.pl"}
+  ]
+}
