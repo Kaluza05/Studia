@@ -1,8 +1,14 @@
 type color = White | Black
 type piece = Pawn | Rook | Knight | Bishop | King | Queen
 type figure = color * piece
-type board_only = figure option list
-type board = figure option list * color * (bool * bool) * (bool * bool) * ((color * int) option)
+type square = figure option
+type position = square list
+type castle_rights = 
+  { white_kingside  : bool;
+    white_queenside : bool;
+    black_kingside  : bool;
+    black_queenside : bool }
+type board = position * color * castle_rights  * ((color * int) option)
 
 (*board, turn, white castle queen/king side, black castle, enpassant column*)
 type repetition_tracker = (int64,int) Hashtbl.t
@@ -11,15 +17,17 @@ type game_state = {
   board : board;
   repetitions : repetition_tracker;
   no_takes_counter : int;
-  coding : string list
+  coding : string list;
 }
+(* remove the coding in chessbot so it runs faster *)
+
 
 type game = 
   | Playing of game_state
   | Win of color
   | Draw
 
-
+type move = string * string
 (*
 kodowanie na dwa sposoby,
 doczepianie kodowania pozycji do ruchu (monada)
@@ -63,13 +71,16 @@ let string_of_color (c : color) : string =
   | Black -> "Black"
 
 (** negation of color *)
-let (!) (c : color) = 
+let (!!) (c : color) = 
   match c with
   | White -> Black
   | Black -> White
 
-let get_board (b,_,_,_,_ : board) = b
-let get_turn (_,t,_,_,_ : board) = t
+let get_board (b,_,_,_ : board) = b
+let get_turn (g : game) =
+  match g with
+  | Playing {board = _,t,_,_;_} -> t
+  | Draw | Win _ -> failwith "game already finished, cant get turn"
 
 let init_board : board = 
   let empty_row = List.init 8 (fun _ -> None) in 
@@ -85,7 +96,8 @@ let init_board : board =
     empty_row;
     add_color White pawn_row; 
     add_color White figure_row] in
-  b,White,(true,true),(true,true), None
+  b,White,({white_kingside = true;white_queenside = true;
+            black_kingside = true;black_queenside = true}), None
 
 
 let game_to_board (g : game) : board = 
@@ -93,7 +105,7 @@ let game_to_board (g : game) : board =
   | Playing {board; _} -> board
   | _ -> failwith "game already finished"
 
-let game : game =  Playing({board = init_board; repetitions = Hashtbl.create 128; no_takes_counter = 0; coding = []})
+let init_game : game =  Playing({board = init_board; repetitions = Hashtbl.create 128; no_takes_counter = 0; coding = []})
 
 (* board is represented as a flat list of len 64, turn it into a 8 * 8 list of rows *)
 (*
@@ -130,7 +142,8 @@ let rec unflatten (n : int) (xs : 'a list) : 'a list list =
 
 let unflatten_board (b : figure option list) : figure option list list = unflatten 8 b
 
-(**returns a pair row * col for a position on a flat board*)
+(**returns a pair row * col for a position on a flat board
+row = pos / 8, col = pos mod 8*)
 let unflatten_pos (pos : int) = pos / 8, pos mod 8
 let flatten_pos (row : int) (col : int) : int = row * 8 + col
 
@@ -139,7 +152,7 @@ let flatten_pos (row : int) (col : int) : int = row * 8 + col
 let pos_in_board (r,c : int * int) = r >= 0 && c >= 0 && r < 8 && c < 8
 
 
-let board_nth_2d (b : board_only) (row : int) (col : int) : figure option = List.nth b (flatten_pos row col)
+let board_nth_2d (b : position) (row : int) (col : int) : figure option = List.nth b (flatten_pos row col)
 
 (*
 ___ ___ ___ ___ ___ ___ ___ ___
@@ -165,7 +178,7 @@ ___ ___ ___ ___ ___ ___ ___ ___
   |> Option.get *)
 
 
-let king_pos (board : board_only) (t : color) = 
+let king_pos (board : position) (t : color) = 
   match List.find_index (fun f ->  match f with
       | Some(t', King) when t' = t -> true
       | _ -> false) board
@@ -174,7 +187,7 @@ let king_pos (board : board_only) (t : color) =
   | None -> failwith "error at getting king pos"
 
 
-let add_row (b,c : board_only * color) (pos : int) : (int * int) list =
+let add_row (b,_,_,_ : board ) (pos : int) : (int * int) list =
   let row,col = unflatten_pos pos in
   let b' = unflatten_board b in
   let curr_row = List.nth b' row in
@@ -184,10 +197,10 @@ let add_row (b,c : board_only * color) (pos : int) : (int * int) list =
     if col < 0 || col >= 8 then acc (*went out of range*) else
     match (List.nth curr_row col) with
     | None -> it (col + inc) ((row,col) :: acc) inc
-    | Some (c',_) -> if !c = c' then (row,col) :: acc else acc   (*still adds but only if the color is different*)
+    | Some (c',_) -> if !!c = c' then (row,col) :: acc else acc   (*still adds but only if the color is different*)
   in (it (col + 1) [] 1) @ (it (col - 1) [] (-1))
 
-let add_col (b,c : board_only * color) (pos : int) : (int * int) list =
+let add_col (b,_,_,_ : board ) (pos : int) : (int * int) list =
   let row,col = unflatten_pos pos in
   let b' = unflatten_board b in
   let curr_col = List.map (fun r -> List.nth r col) b' in
@@ -197,14 +210,14 @@ let add_col (b,c : board_only * color) (pos : int) : (int * int) list =
     if row < 0 || row >= 8 then acc (*went out of range*) else
     match (List.nth curr_col row) with
     | None -> it (row + inc) ((row,col) :: acc) inc
-    | Some (c',_) -> if !c = c' then (row,col) :: acc else acc   (*still adds but only if the color is different*)
+    | Some (c',_) -> if !!c = c' then (row,col) :: acc else acc   (*still adds but only if the color is different*)
   in (it (row + 1) [] 1) @ (it (row - 1) [] (-1))
 
 (* diagonal going up like A1 to H8 *)
 (** checks if position is in the board 8x8 *)
 
 (* cos trzeba bedzie zme3inic w tych temp_diag ale to jutro  *)
-let add_diag1 (b,t : board_only * color) (pos : int) : (int * int) list =
+let add_diag1 (b,_,_,_ : board ) (pos : int) : (int * int) list =
   let row,col = unflatten_pos pos in
   let temp_diag = List.init 16 (fun i -> row - i + 8,col + i - 8) in
   let curr_diag = List.filter pos_in_board temp_diag in
@@ -218,11 +231,11 @@ let add_diag1 (b,t : board_only * color) (pos : int) : (int * int) list =
     | (row,col) :: pos_list -> 
       begin match board_nth_2d b row col with
         | None -> it pos_list ((row,col) :: acc)
-        | Some (c',_) -> if !c = c' then (row,col) :: acc else acc
+        | Some (c',_) -> if !!c = c' then (row,col) :: acc else acc
       end 
   in it left_side [] @ it right_side []
 
-let add_diag2 (b,t : board_only * color) (pos : int) : (int * int) list =
+let add_diag2 (b,_,_,_ : board ) (pos : int) : (int * int) list =
   let row,col = unflatten_pos pos in
   let temp_diag = List.init 16 (fun i -> row + i - 8,col + i - 8) in
   let curr_diag = List.filter pos_in_board temp_diag in
@@ -235,13 +248,13 @@ let add_diag2 (b,t : board_only * color) (pos : int) : (int * int) list =
     | (row,col) :: pos_list -> 
       begin match board_nth_2d b row col with
         | None -> it pos_list ((row,col) :: acc)
-        | Some (c',_) -> if !c = c' then (row,col) :: acc else acc
+        | Some (c',_) -> if !!c = c' then (row,col) :: acc else acc
       end 
   in it left_side [] @ it right_side []
 
 
 (*cart product (2,-2)x(1,-1), (1,-1)x(2,-2) *)
-let add_knight (b : board_only) (pos : int) : (int * int) list = 
+let add_knight (b,_,_,_ : board) (pos : int) : (int * int) list = 
   let t = (List.nth b pos) |> Option.get |> fst in
   let row,col = unflatten_pos pos in 
   let temp_moves = ([2;-2] >< [1;-1]) @ ([1;-1] >< [2;-2]) |> List.map (fun (i,j) -> row + i, col + j)  in 
@@ -249,11 +262,11 @@ let add_knight (b : board_only) (pos : int) : (int * int) list =
   let moves = moves_in |> List.filter (fun (r,c) -> 
     match List.nth b (flatten_pos r c) with
     | None -> true
-    | Some (c',_) -> !c' = t ) 
+    | Some (c',_) -> !!c' = t ) 
   in
   moves
 
-let pawn_attacks (b,t',_,_,_) (pos : int) (color : color) = 
+let pawn_attacks (b,_,_,_) (pos : int) (color : color) = 
   let inc = match color with
   | White -> -1
   | Black ->  1
@@ -262,10 +275,10 @@ let pawn_attacks (b,t',_,_,_) (pos : int) (color : color) =
     [(row + inc,col+1);(row + inc, col-1)] 
     |> List.filter pos_in_board 
     |> List.filter (fun (r,c) -> match List.nth b (flatten_pos r c) with
-      | Some(color',_) when !color = color' -> true
+      | Some(color',_) when !!color = color' -> true
       | _ -> false) 
 
-let add_pawn (b,t',_,_ ,e: board) (pos : int) (color : color) = 
+let add_pawn (b,t',castle ,e: board) (pos : int) (color : color) = 
   let inc = match color with
   | White -> -1
   | Black ->  1
@@ -274,7 +287,7 @@ let add_pawn (b,t',_,_ ,e: board) (pos : int) (color : color) =
   (* forward, if on the second file can move by two (can do enpassant then but add that later), when at last file do a promotion *)
   let enpassant = if row = rmod (4 * inc) 7 then 
     begin match e with
-    | Some(c', p) when c' = !color -> 
+    | Some(c', p) when c' = !!color -> 
       let _, col' = unflatten_pos p in
       if col' = col + 1 then [(row + inc,col+1)] else 
       if col' = col - 1 then [(row + inc, col - 1)] 
@@ -283,7 +296,7 @@ let add_pawn (b,t',_,_ ,e: board) (pos : int) (color : color) =
     end 
     else [] 
   in
-  let takes = pawn_attacks (b,t',(true,true),(true,true),e) pos color
+  let takes = pawn_attacks (b,t',castle,e) pos color
   in
   let moves_forward = 
     if Option.is_none (List.nth b (flatten_pos (row + inc) col)) then (*row-1 should always be >=0 because we cant have pawn on last file*)
@@ -298,7 +311,7 @@ let add_pawn (b,t',_,_ ,e: board) (pos : int) (color : color) =
 
 
 
-let king_attacks (b : board) (pos : int) = 
+let king_attacks (b : board) (pos : int) : (int * int) list = 
   let t = (List.nth (get_board b) pos) |> Option.get |> fst in
   let row,col = unflatten_pos pos in
   let temp_moves = ([1;-1] >< [1;-1]) @ ([1;-1] >< [0]) @ ([0] >< [1;-1]) |> List.map (fun (i,j) -> row + i, col + j) in
@@ -306,7 +319,7 @@ let king_attacks (b : board) (pos : int) =
   let moves = moves_in |> List.filter (fun (r,c) -> 
     match List.nth  (get_board b) (flatten_pos r c) with
     | None -> true
-    | Some (c',_) -> !c' = t)
+    | Some (c',_) -> !!c' = t)
   in 
   moves
 
@@ -314,17 +327,17 @@ let king_attacks (b : board) (pos : int) =
 
 let possible_for_wpawn (b : board) (pos : int) = add_pawn b pos White
 let possible_for_bpawn (b : board) (pos : int) = add_pawn b pos Black 
-let possible_for_rook   (b,t,_,_,_ : board)  (pos : int) = 
+let possible_for_rook   (b : board)  (pos : int) = 
 (* get all positions  *)
 (* get figures on the same row, col and add everything between *)
-  add_row (b,t) pos @ add_col (b,t) pos
+  add_row b pos @ add_col b pos
   (* z tego odjąć wszystkie *)
 
-let possible_for_knight (b,_,_,_,_ : board)  (pos : int) = add_knight b pos
-let possible_for_bishop (b,t,_,_,_ : board)  (pos : int) = 
-  add_diag1 (b,t) pos @ add_diag2 (b,t) pos 
-let possible_for_queen  (b,t,_,_,_ : board)  (pos : int) = 
-  add_row (b,t) pos @ add_col (b,t) pos @ add_diag1 (b,t) pos @ add_diag2 (b,t) pos 
+let possible_for_knight (b : board)  (pos : int) = add_knight b pos
+let possible_for_bishop (b : board)  (pos : int) = 
+  add_diag1 b pos @ add_diag2 b pos 
+let possible_for_queen  (b : board)  (pos : int) = 
+  add_row b pos @ add_col b pos @ add_diag1 b pos @ add_diag2 b pos 
 
 
 
@@ -387,37 +400,37 @@ let is_attacked (b : board) (pos : int) (t : color) =
 (** checks if color t is under check  *)
 let is_check (b : board) (t : color) = 
   let k_pos = king_pos (get_board b) t in
-  is_attacked b k_pos !t
+  is_attacked b k_pos !!t
 
 
 
 let can_castle_kingside (brd : board) (col : color) : bool =
-  let b,t,(_,c1),(_,c2),_ = brd in 
+  let b,t,castle_rights,_ = brd in 
   (* hardcoded positions where the figures are *)
   match col with
-  | White -> List.for_all (fun i -> not (is_attacked brd i !t)) [60;61;62] 
-    && c1 && 
+  | White -> List.for_all (fun i -> not (is_attacked brd i !!t)) [60;61;62] 
+    && castle_rights.white_kingside && 
     begin match List.nth b 60 , List.nth b 61, List.nth b 62, List.nth b 63 with
     | Some(White,King), None,None,Some(White,Rook) -> true
     | _ -> false
     end
-  | Black -> List.for_all (fun i -> not (is_attacked brd i !t)) [4;5;6]
-    && c2 && 
+  | Black -> List.for_all (fun i -> not (is_attacked brd i !!t)) [4;5;6]
+    && castle_rights.black_kingside && 
     begin match List.nth b 4, List.nth b 5, List.nth b 6, List.nth b 7 with
     | Some(Black,King), None,None,Some(Black,Rook) -> true
     | _ -> false
     end
 let can_castle_queenside (brd : board) (col : color) : bool =
-  let b,t,(c1,_),(c2,_),_ = brd in
+  let b,t,castle_rights,_ = brd in
   match col with
-  | White -> List.for_all (fun i -> not (is_attacked brd i !t)) [58;59;60]
-    && c1 && 
+  | White -> List.for_all (fun i -> not (is_attacked brd i !!t)) [58;59;60]
+    && castle_rights.white_queenside && 
     begin match List.nth b 56 , List.nth b 57, List.nth b 58, List.nth b 59, List.nth b 60 with
     | Some(White,Rook), None,None,None,Some(White,King) -> true
     | _ -> false
     end
-  | Black -> List.for_all (fun i -> not (is_attacked brd i !t)) [2;3;4]
-    && c2 &&
+  | Black -> List.for_all (fun i -> not (is_attacked brd i !!t)) [2;3;4]
+    && castle_rights.black_queenside &&
     begin match List.nth b 0, List.nth b 1, List.nth b 2, List.nth b 3, List.nth b 4 with
     | Some(Black,Rook), None,None,None,Some(Black,King) -> true
     | _ -> false
@@ -493,7 +506,7 @@ let int_to_pos (p : int) =
   if p < 0 || p >= 64 then failwith "wrong pos" else
   let r,c = unflatten_pos p in
   String.make 1 (letter_of_int c) ^ string_of_int (8 - r)
-let try_double_pawn_move (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) = 
+let try_double_pawn_move (b,t,c,_ : board) (curr_pos : int) (go_to : int) = 
   match List.nth b curr_pos with
   | Some(_,Pawn) -> 
     let row,col = unflatten_pos curr_pos 
@@ -502,13 +515,13 @@ let try_double_pawn_move (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) =
     let b = insert_at_n b None curr_pos in 
     let b = insert_at_n b (Some(t,Pawn)) go_to in
     let e = if 
-      (col' <> 7 && List.nth b (go_to + 1) = Some(!t,Pawn)) 
+      (col' <> 7 && List.nth b (go_to + 1) = Some(!!t,Pawn)) 
       || 
-      (col' <> 0 && List.nth b (go_to - 1) = Some(!t, Pawn)) then Some(t,col) else None in
-    let new_board = b,!t, c1,c2, e in Some new_board 
+      (col' <> 0 && List.nth b (go_to - 1) = Some(!!t, Pawn)) then Some(t,col) else None in
+    let new_board = b,!!t, c, e in Some new_board 
   else None
   | _ -> None
-let try_enpassant (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) = 
+let try_enpassant (b,t,c,_ : board) (curr_pos : int) (go_to : int) = 
   (* we already know we can do enpassant since it's in the correct moves *)
   let inc = match t with
   | White -> -1
@@ -516,36 +529,44 @@ let try_enpassant (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) =
   in
   match List.nth b curr_pos, List.nth b go_to with
   | Some(_,Pawn), None -> 
-    let row,col = unflatten_pos curr_pos 
-    and row',col' = unflatten_pos go_to 
+    let _,col = unflatten_pos curr_pos 
+    and _',col' = unflatten_pos go_to 
     in if abs (col - col') = 1 
       then 
       let b = insert_at_n b None curr_pos in 
       let b = insert_at_n b (Some(t,Pawn)) go_to in
       let b = insert_at_n b None (go_to - inc * 8) in
-      let new_board = b,!t, c1,c2, None in Some new_board 
+      let new_board = b,!!t, c, None in Some new_board 
     else None
   | _ -> None
-let try_castle (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) = 
+let try_castle (b,t,castle_rights,_ : board) (curr_pos : int) (go_to : int) = 
   match List.nth b curr_pos with
   | Some(_,King) -> 
-    let row,col   = unflatten_pos curr_pos
-    and row',col' = unflatten_pos go_to
+    let _,col   = unflatten_pos curr_pos
+    and _',col' = unflatten_pos go_to
     in if abs(col' - col) = 2 then  
       let b = insert_at_n b (Some(t,King)) go_to in 
       let rook_go = if col' = 6 then curr_pos else curr_pos - 1 in
       let rook_pos = if col' = 6 then curr_pos + 3 else curr_pos - 4 in
       let b = insert_at_n b (Some(t,Rook)) rook_go in
       let b = insert_at_n b None rook_pos in
-      let c1,c2 = match t with
-      | White -> (false,false), c2
-      | Black -> c1, (false,false) 
+      let castle_rights = match t with
+      | White -> {
+        white_kingside = false; 
+        white_queenside = false; 
+        black_kingside = castle_rights.black_kingside; 
+        black_queenside = castle_rights.black_queenside}
+      | Black -> {
+        white_kingside = castle_rights.white_kingside; 
+        white_queenside = castle_rights.white_queenside; 
+        black_kingside = false;
+        black_queenside = false}
       in
-      let new_board = b,!t, c1,c2, None in Some new_board
+      let new_board = b,!!t, castle_rights, None in Some new_board
 
     else None
   | _ -> None
-let try_promotion (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) (promo : piece) = 
+let try_promotion (b,t,c,_ : board) (curr_pos : int) (go_to : int) (promo : piece) = 
   let inc = match t with
   | White -> -1
   | Black ->  1
@@ -555,24 +576,60 @@ let try_promotion (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) (promo : 
   | Some(_,Pawn) ->
     let b = insert_at_n b None curr_pos in 
     let b = insert_at_n b (Some(t,promo)) go_to in
-    let new_board = b, !t, c1,c2,None in Some new_board
+    let new_board = b, !!t, c,None in Some new_board
   | _ -> None
   else None
 
-let update_regular_move (b,t,c1,c2,_ : board) (curr_pos : int) (go_to : int) = 
+let update_regular_move (b,t,castle_rights,_ : board) (curr_pos : int) (go_to : int) = 
   match List.nth b curr_pos with
   | None -> failwith "not possible case"
   | Some(_,f) ->
-    let c1,c2 = match t,f with
-    | White, King -> (false,false),c2
-    | Black, King -> c1, (false,false)
-    | White, Rook -> if curr_pos = 56 then (false, snd c1), c2 else if curr_pos = 63 then (fst c1, false), c2 else c1, c2
-    | Black, Rook -> if curr_pos = 0 then c1, (false, snd c2) else if curr_pos = 7 then c1, (fst c2, false) else c1,c2(*not a castle so we cant castle no more*)
-    | _ -> c1, c2
+    let castle_rights = match t,f with
+    | White, King -> {
+      white_kingside = false;
+      white_queenside = false; 
+      black_kingside = castle_rights.black_kingside;
+      black_queenside = castle_rights.black_queenside}
+    | Black, King -> {
+      white_kingside = castle_rights.white_kingside; 
+      white_queenside = castle_rights.white_queenside; 
+      black_kingside = false;
+      black_queenside = false}
+    | White, Rook -> 
+      if curr_pos = 56 then 
+      {white_kingside = castle_rights.white_kingside;
+      white_queenside = false; 
+      black_kingside = castle_rights.black_kingside;
+      black_queenside = castle_rights.black_queenside}
+      else if curr_pos = 63 then 
+      {white_kingside = false;
+      white_queenside = castle_rights.white_queenside; 
+      black_kingside = castle_rights.black_kingside;
+      black_queenside = castle_rights.black_queenside} 
+      else castle_rights
+    | Black, Rook -> 
+      if curr_pos = 0 then 
+      {white_kingside = castle_rights.white_kingside;
+      white_queenside = castle_rights.white_queenside; 
+      black_kingside = castle_rights.black_kingside;
+      black_queenside = false} 
+      else if curr_pos = 7 then
+      {white_kingside = castle_rights.white_kingside;
+      white_queenside = castle_rights.white_queenside; 
+      black_kingside = false;
+      black_queenside = castle_rights.black_queenside} 
+      else castle_rights(*not a castle so we cant castle no more*)
+    | _ -> castle_rights
     in
     let b = insert_at_n b None curr_pos in 
     let b = insert_at_n b (Some(t,f)) go_to in
-    let new_board = b,!t,c1,c2,None in Some new_board
+    let new_board = b,!!t,castle_rights,None in Some new_board
+
+
+let string_to_color (s : string) : color = 
+  if s = "white" then White else
+  if s = "black" then Black else
+  failwith "wrong color passed"
 
 let color_to_string (c : color) : string = 
   match c with
@@ -618,11 +675,11 @@ let  possible_moves_helper (board : board) (pos : int) : (int * int) list =
     end
   in moves
 
-let is_valid (b,t,c1,c2,e : board) (curr_pos : int) (go_to : int) = 
+let is_valid (b,t,castle,e : board) (curr_pos : int) (go_to : int) = 
   (match List.nth b curr_pos with
   | Some(c,_) when c = t -> true
   | _ -> false)
-  && List.mem (unflatten_pos go_to) (possible_moves_helper (b,t,c1,c2,e) curr_pos) 
+  && List.mem (unflatten_pos go_to) (possible_moves_helper (b,t,castle,e) curr_pos) 
 
 
 (* jesli robimy ruch z possible_moves to nie chcemy zeby wywalilo jesli jest niepoprawny tylko nie patrzylo na ten przypadek
@@ -647,14 +704,15 @@ let move_helper1 ?(from_possible_moves = false) ?(promo = Queen) (brd : board) (
 
 
 let possible_moves (board : board) (pos : int) : (int * int) list = 
+  let _,t,_,_ = board in 
   let moves = possible_moves_helper board pos 
     in
     List.filter (fun (r,c) -> 
       try 
       let after_move = move_helper1 ~from_possible_moves:true board pos (flatten_pos r c) in 
-      is_check after_move (get_turn board) |> not
+      is_check after_move t |> not
       with
-      | CheckAfterMove(s) -> false
+      | CheckAfterMove(_) -> false
       | e -> raise e 
       ) 
       moves
@@ -663,24 +721,25 @@ let possible_moves (board : board) (pos : int) : (int * int) list =
 
 (**returns every square that can be visited in the current turn*)
 let  all_moves (b : board) = 
+  let _,t,_,_ = b in 
   let all_pieces = filter_indices (get_board b) 
   (fun f -> match f with 
-  | Some(t',_) when (get_turn b) = t' -> true 
+  | Some(t',_) when t = t' -> true 
   | _ -> false) 
   in
   List.concat_map (fun pos -> possible_moves b pos) all_pieces
 
 let is_terminal (brd : board) = all_moves brd = []
 
-let is_checkmate (brd : board) = let b,t,_,_,_ = brd in is_attacked brd (king_pos b t) !t && is_terminal brd
+let is_checkmate (brd : board) = let b,t,_,_ = brd in is_attacked brd (king_pos b t) !!t && is_terminal brd
 
-let zobrist x = Int64.zero (*trzeba zaimplementować counter*)
-let is_pawn_move (b,_,_,_,_ : board) (curr_pos : int) (go_to : int) = 
+let zobrist _ = Int64.zero (*trzeba zaimplementować counter*)
+let is_pawn_move (b,_,_,_ : board) (curr_pos : int) (_ : int) = 
   match List.nth b curr_pos with
   | Some(_,Pawn) -> true
   | _ -> false
 
-let is_capture (b,_,_,_,_ : board) (curr_pos : int) (go_to : int) = List.nth b go_to |> Option.is_some
+let is_capture (b,_,_,_ : board) (_ : int) (go_to : int) = List.nth b go_to |> Option.is_some
 
 let add_board (repetitions : repetition_tracker) (board : board) : unit = 
   let hashed_board = zobrist board in
@@ -691,10 +750,10 @@ let add_board (repetitions : repetition_tracker) (board : board) : unit =
   Hashtbl.replace repetitions hashed_board count
 
 
-let is_draw ({board;repetitions;no_takes_counter} : game_state) : bool = 
+let is_draw ({board;repetitions;no_takes_counter;_} : game_state) : bool = 
   let hashed_board = zobrist board in
-  let b,t,_,_,_ = board in 
-  let is_stalemate  = not (is_attacked board (king_pos b t) !t) && is_terminal board in
+  let b,t,_,_ = board in 
+  let is_stalemate  = not (is_attacked board (king_pos b t) !!t) && is_terminal board in
   let is_repeating  = 
     match Hashtbl.find_opt repetitions hashed_board with
     | Some(c) -> c = 5
@@ -719,7 +778,7 @@ let is_draw ({board;repetitions;no_takes_counter} : game_state) : bool =
 
 (* promocje mozna zamienic zeby zwracalo funckje do ktorej przekaze sie fugure zeby moze lepiej wygladalo 
 grajac w utopie *)
-let code_board (b,_,_,_,_ : board) (curr_pos : int) (go_to : int) =
+let code_board (b,_,_,_ : board) (curr_pos : int) (_ : int) =
   let figure = List.nth b curr_pos |> Option.get |> snd |> piece_to_string in figure
 (* potrzeba:
 is check
@@ -734,8 +793,9 @@ let move_helper2 ({board;repetitions; no_takes_counter;coding} : game_state) (cu
   let board = move_helper1 board curr_pos go_to ~promo in
   add_board repetitions board;
   let game_state = {board;repetitions;no_takes_counter;coding} in
-  if is_check board (!(get_turn board)) then failwith "illegal move" else
-  if is_checkmate board then Win !(get_turn board) else
+  let _,t,_,_ = board in 
+  if is_check board (!!t) then failwith "illegal move" else
+  if is_checkmate board then Win !!t else
   if is_draw game_state then Draw else
   (* update counters *)
   
@@ -755,13 +815,20 @@ let move ?(promo = Queen) (curr_pos : string) (go_to : string) (g : game) : game
 
 let resign (g : game) : game = 
   match g with
-  | Playing ({board = _,t,_,_,_; _}) -> Win !t
+  | Playing ({board = _,t,_,_; _}) -> Win !!t
   | _ -> failwith "game already finished"
+
+let get_winner (g : game) : color = 
+  match g with
+  | Win c -> c
+  | Draw -> failwith "game ended with a draw"
+  | Playing _ -> failwith "game still in play"
 
 (**returns a list of moves that can be done in a current turn*)
 let get_all_moves (g : game) : (int * int) list = 
   let b = game_to_board g in
-  let pieces = all_pieces b (get_turn b) in
+  let _,t,_,_ = b in 
+  let pieces = all_pieces b t in
   pieces
   |> List.concat_map (fun p -> 
     let moves = possible_moves b p in
@@ -780,7 +847,7 @@ and *)
 let add_markings (xss : string list list ) : string list list = 
   let rows = ["A";"B";"C";"D";"E";"F";"G";"H"] |> List.map (fun s -> " " ^ s ^ " ")in
   let add_rows = xss  @ [rows]  in
-  let add_cols = List.mapi (fun i r -> if i < 8 then string_of_int (8 - i) :: r else " " :: r) add_rows in
+  let add_cols = List.mapi (fun i r -> if i < 8 then (string_of_int (8 - i) ^ " ") :: r else " " :: r) add_rows in
   add_cols
 
 let print_board (b : board) : unit = 
@@ -794,7 +861,7 @@ let print_game (g : game) : unit =
   | _ -> failwith "game finished"
 
 
-let highlight_to_string (b,_,_,_,_ : board) (to_highlight : int list) : string list list = 
+let highlight_to_string (b,_,_,_ : board) (to_highlight : int list) : string list list = 
   (fun i -> if List.mem i to_highlight then " ● " else List.nth b i |> fig_to_string) 
   |> List.init 64 
   |> unflatten 8
@@ -820,6 +887,12 @@ let highlight_all_moves (g : game) : unit =
   let str_board = highlight_to_string board moves in
   print_list_list Fun.id str_board
 
+let highlight_move_string (pos : string) (g : game)  = 
+  let board = game_to_board g in
+  let pos = pos_to_int pos in 
+  let to_highlight = List.map (fun (r,c) -> flatten_pos r c) (possible_moves board pos)  in
+  let str_board = highlight_to_string board to_highlight in
+  List.fold_left (fun acc row -> acc ^ List.fold_left (fun acc' x -> acc' ^ x) "" row ^ "\n") "" str_board
 
 (* zamiac wywalac blad powinno nie wywalac, albo powinna byc flaga czy odpalamy z possible moves czy z moves
  *)

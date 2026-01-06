@@ -1,5 +1,10 @@
 open Logic
 
+let starting_castle = {
+  white_kingside = true;
+  white_queenside = true;
+  black_kingside = true;
+  black_queenside = true}
 
 let open_pos1 : board =
   let empty_row = List.init 8 (fun _ -> None) in
@@ -44,7 +49,7 @@ let open_pos1 : board =
 
   let r1 = add_color White figure_row in
 
-  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, (true, true), (true, true), None)
+  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, starting_castle, None)
 
 let open_pos2 : board =
   let empty_row = List.init 8 (fun _ -> None) in
@@ -103,7 +108,7 @@ let open_pos2 : board =
     |> set 1 None
   in
 
-  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], Black, (true, true), (true, true), None)
+  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], Black, starting_castle, None)
 
 
 let open_pos3 : board =
@@ -148,7 +153,7 @@ let open_pos3 : board =
 
   let r1 = add_color White figure_row in
 
-  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, (true, true), (true, true), None)
+  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, starting_castle, None)
 
 
 let open_rooks_pos2 : board =
@@ -183,7 +188,7 @@ let open_rooks_pos2 : board =
 
   let r1 = add_color White figure_row in
 
-  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, (true, true), (true, true), None)
+  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, starting_castle, None)
 
 let castle_board1 : board =
   let empty_row = List.init 8 (fun _ -> None) in
@@ -216,7 +221,7 @@ let castle_board1 : board =
   let r1 = add_color White figure_row
     |> set 5 None |> set 6 None in
 
-  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, (true, true), (true, true), Some(Black,6))
+  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, starting_castle, Some(Black,6))
 
 
 let open_bishops_pos2 : board =
@@ -249,7 +254,7 @@ let open_bishops_pos2 : board =
 
   let r1 = add_color White figure_row in
 
-  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, (true, true), (true, true), None)
+  (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, starting_castle, None)
   
 
-let curr_game = game |> move "E2" "E4"  |> move "E7" "E6" |> move "E4" "E5" |> move "D7" "D5" |> move "E5" "D6"
+let curr_game = init_game |> move "E2" "E4"  |> move "E7" "E6" |> move "E4" "E5" |> move "D7" "D5" |> move "E5" "D6"

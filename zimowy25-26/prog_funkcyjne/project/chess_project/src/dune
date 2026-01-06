@@ -1,3 +1,50 @@
+(library
+ (name logic)
+ 
+ (flags (:standard -warn-error -a))
+ (modules logic)
+)
+
+(library
+ (name chessbot)
+ (modules chessbot)
+ 
+ (flags (:standard -warn-error -a))
+ (libraries logic))
+
+(library
+(name network)
+(modules network)
+
+ (flags (:standard -warn-error -a))
+(libraries unix))
+
+
 (executable
  (name circle)
+ (modules circle)
+ 
+ (flags (:standard -warn-error -a))
  (libraries graphics))
+
+(executable
+ (name positions)
+ (modules positions)
+ 
+ (flags (:standard -warn-error -a))
+ (libraries logic))
+
+ (executable
+ (name game_queue)
+ (modules game_queue)
+ (flags (:standard -warn-error -a))
+ (libraries logic chessbot network))
+ 
+(executable
+ (name ui)
+ (modules ui)
+ (libraries js_of_ocaml logic )
+ (preprocess (pps js_of_ocaml-ppx))
+ (modes js))
+
+

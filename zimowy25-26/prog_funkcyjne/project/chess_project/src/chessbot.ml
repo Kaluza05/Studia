@@ -1,13 +1,14 @@
 open Logic
 
 (* zrob logic.mli, zeby nie udostepniać wszystkiego*)
+type bot_game = game * int * color   (*holds bot depth and color*)
 
-let eval_position (g : game) : float= 
-  let curr_player = g |> game_to_board |> get_turn in
+let eval_position (g : game) : float = 
+  let curr_player = g  |> get_turn in
   (match g with
   | Win c -> if c = curr_player then 1000 else -1000
   | Draw -> 0
-  | Playing {board;_} -> 1)
+  | Playing {board;_} -> Fun.const 1 board)
   |> float_of_int
 
 
@@ -52,18 +53,21 @@ let find_best_move (g : game) (depth : int) : int * int =
   |> snd
 
 
-let move_bot (g : game) : game = 
-  let depth = 2 in
+let move_bot (g,depth,c : bot_game) : bot_game = 
   match g with
   | Win _ | Draw -> failwith "game already finished"
   | g -> 
     let curr_pos, go_to = find_best_move g depth in
-    g |> move_int curr_pos go_to
+    (g |> move_int curr_pos go_to),depth,c
 
-let move_player (g : game) (curr_pos : string) (go_to : string) : game = g |> move curr_pos go_to |> move_bot
+let move_player (curr_pos : string) (go_to : string) (g,depth,c : bot_game) : bot_game = 
+  let move_p = g |> move curr_pos go_to 
+  in  (move_p,depth,c) |> move_bot
 
 (** starts a game with a bot of a given color, if bot is White move bot *)
-let game_with_bot (bot_col : color) = 
+let game_with_bot (bot_col : color) (depth : int) : bot_game = 
   match bot_col with
-  | White -> game |> move_bot
-  | Black -> game
+  | White -> (init_game,depth,bot_col) |> move_bot
+  | Black -> init_game,depth,bot_col
+
+let bot_game_to_game (g,_,_ : bot_game) : game = g
