@@ -105,7 +105,7 @@ let game_to_board (g : game) : board =
   | Playing {board; _} -> board
   | _ -> failwith "game already finished"
 
-let init_game : game =  Playing({board = init_board; repetitions = Hashtbl.create 128; no_takes_counter = 0; coding = []})
+let init_game () : game =  Playing({board = init_board; repetitions = Hashtbl.create 128; no_takes_counter = 0; coding = []})
 
 (* board is represented as a flat list of len 64, turn it into a 8 * 8 list of rows *)
 (*
@@ -462,15 +462,15 @@ let possible_for_king   (b : board)  (pos : int) = add_king b pos
 
 
 let int_of_letter (c : char) : int = 
-  match c with
-  | 'A' -> 0
-  | 'B' -> 1
-  | 'C' -> 2
-  | 'D' -> 3
-  | 'E' -> 4
-  | 'F' -> 5
-  | 'G' -> 6
-  | 'H' -> 7
+  match Char.lowercase_ascii c with
+  | 'a' -> 0
+  | 'b' -> 1
+  | 'c' -> 2
+  | 'd' -> 3
+  | 'e' -> 4
+  | 'f' -> 5
+  | 'g' -> 6
+  | 'h' -> 7
   | _ -> failwith "wrong char given"
   
 let letter_of_int (i : int) : char = 
@@ -744,7 +744,7 @@ let is_capture (b,_,_,_ : board) (_ : int) (go_to : int) = List.nth b go_to |> O
 let add_board (repetitions : repetition_tracker) (board : board) : unit = 
   let hashed_board = zobrist board in
   let count = match Hashtbl.find_opt repetitions hashed_board with
-  | Some(n) -> n + 1
+  | Some(_) -> 1 (*should be n + 1 but i dont have hashing finished*)
   | None -> 1
   in
   Hashtbl.replace repetitions hashed_board count
@@ -806,7 +806,7 @@ let move_int ?(promo = Queen) (curr_pos : int) (go_to : int) (g : game) : game =
   | Playing game_state -> 
     move_helper2 game_state curr_pos go_to promo
   | Win c -> failwith ("game finished with player" ^ string_of_color c ^ "winning")
-  | Draw -> failwith "game ended with a draw"
+  | Draw -> failwith "game ended with a draw, can't move int"
   
 let move ?(promo = Queen) (curr_pos : string) (go_to : string) (g : game) : game =
   let curr_pos, go_to = pos_to_int curr_pos, pos_to_int go_to in
@@ -821,7 +821,7 @@ let resign (g : game) : game =
 let get_winner (g : game) : color = 
   match g with
   | Win c -> c
-  | Draw -> failwith "game ended with a draw"
+  | Draw -> failwith "game ended with a draw, can-t get winner"
   | Playing _ -> failwith "game still in play"
 
 (**returns a list of moves that can be done in a current turn*)
@@ -894,6 +894,16 @@ let highlight_move_string (pos : string) (g : game)  =
   let str_board = highlight_to_string board to_highlight in
   List.fold_left (fun acc row -> acc ^ List.fold_left (fun acc' x -> acc' ^ x) "" row ^ "\n") "" str_board
 
+let highlight_all_moves_string (g : game) : string = 
+  let board = game_to_board g in
+  let to_highlight = List.map (fun (r,c) -> flatten_pos r c) (all_moves board)  in
+  let str_board = highlight_to_string board to_highlight in
+  List.fold_left (fun acc row -> acc ^ List.fold_left (fun acc' x -> acc' ^ x) "" row ^ "\n") "" str_board
+
+let show_board (g : game) = 
+  let board = game_to_board g |> get_board |> unflatten_board in
+  let str_board = board |> list_list_map fig_to_string  |> add_markings in 
+  List.fold_left (fun acc row -> acc ^ List.fold_left (fun acc' x -> acc' ^ x) "" row ^ "\n") "" str_board
 (* zamiac wywalac blad powinno nie wywalac, albo powinna byc flaga czy odpalamy z possible moves czy z moves
  *)
 

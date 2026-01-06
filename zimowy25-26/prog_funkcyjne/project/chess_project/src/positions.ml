@@ -257,4 +257,4 @@ let open_bishops_pos2 : board =
   (List.flatten [r8;r7;r6;r5;r4;r3;r2;r1], White, starting_castle, None)
   
 
-let curr_game = init_game |> move "E2" "E4"  |> move "E7" "E6" |> move "E4" "E5" |> move "D7" "D5" |> move "E5" "D6"
+let curr_game = init_game () |> move "E2" "E4"  |> move "E7" "E6" |> move "E4" "E5" |> move "D7" "D5" |> move "E5" "D6"

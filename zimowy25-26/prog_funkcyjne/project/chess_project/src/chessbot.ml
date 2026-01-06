@@ -3,6 +3,8 @@ open Logic
 (* zrob logic.mli, zeby nie udostepniać wszystkiego*)
 type bot_game = game * int * color   (*holds bot depth and color*)
 
+let bot_color (_,_,c: bot_game) : color = c
+
 let eval_position (g : game) : float = 
   let curr_player = g  |> get_turn in
   (match g with
@@ -67,7 +69,7 @@ let move_player (curr_pos : string) (go_to : string) (g,depth,c : bot_game) : bo
 (** starts a game with a bot of a given color, if bot is White move bot *)
 let game_with_bot (bot_col : color) (depth : int) : bot_game = 
   match bot_col with
-  | White -> (init_game,depth,bot_col) |> move_bot
-  | Black -> init_game,depth,bot_col
+  | White -> (init_game (),depth,bot_col) |> move_bot
+  | Black -> init_game (),depth,bot_col
 
 let bot_game_to_game (g,_,_ : bot_game) : game = g
