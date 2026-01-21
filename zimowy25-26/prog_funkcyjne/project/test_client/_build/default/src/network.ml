@@ -137,3 +137,9 @@ let establish_server ~port proc_client =
   Thr.spawn loop;
   Thr.main_loop ()
 
+let connect host port = 
+  let addr = (gethostbyname host).h_addr_list.(0) in
+  let sockaddr = ADDR_INET (addr, port) in
+  let sock = socket PF_INET SOCK_STREAM 0 in
+  connect sock sockaddr;
+  sock_of_fd sock

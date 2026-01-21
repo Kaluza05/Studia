@@ -34,17 +34,30 @@
  (flags (:standard -warn-error -a))
  (libraries logic))
 
- (executable
+ (library
  (name game_queue)
  (modules game_queue)
  (flags (:standard -warn-error -a))
  (libraries logic chessbot network))
+
  
-(executable
- (name ui)
- (modules ui)
- (libraries js_of_ocaml logic )
- (preprocess (pps js_of_ocaml-ppx))
- (modes js))
+ (executable
+ (name game_queue_change)
+ (modules game_queue_change)
+ (flags (:standard -warn-error -a))
+ (libraries logic chessbot network))
+
+  (executable
+ (name client)
+ (modules client)
+ (flags (:standard -warn-error -a))
+ (libraries logic chessbot network game_queue graphics))
+ 
+; (executable
+;  (name ui)
+;  (modules ui)
+;  (libraries js_of_ocaml logic )
+;  (preprocess (pps js_of_ocaml-ppx))
+;  (modes js))
 
 

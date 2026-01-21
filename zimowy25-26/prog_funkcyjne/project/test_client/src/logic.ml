@@ -84,7 +84,9 @@ let get_turn (g : game) =
   | Playing {board = _,t,_,_;_} -> t
   | Draw | Win _ -> failwith "game already finished, cant get turn"
 
-let init_board : board = 
+
+(* alsa fen conversion would be needed so thats the way i could initialize it *)
+let init_board () : board = 
   let empty_row = List.init 8 (fun _ -> None) in 
   let pawn_row  = List.init 8 (fun _ -> Pawn) in
   let figure_row = [Rook;Knight;Bishop;Queen;King;Bishop;Knight;Rook] in
@@ -107,7 +109,7 @@ let game_to_board (g : game) : board =
   | Playing {board; _} -> board
   | _ -> failwith "game already finished"
 
-let init_game () : game =  Playing({board = init_board; repetitions = Hashtbl.create 128; no_takes_counter = 0; coding = []})
+let init_game () : game =  Playing({board = init_board () ; repetitions = Hashtbl.create 128; no_takes_counter = 0; coding = []})
 
 (* board is represented as a flat list of len 64, turn it into a 8 * 8 list of rows *)
 (*
@@ -142,8 +144,8 @@ let rec unflatten (n : int) (xs : 'a list) : 'a list list =
   | [] -> []
   | _  -> let h,t = take_n xs n in h :: unflatten n t
 
-let unflatten_board (b : figure option list) : figure option list list = unflatten 8 b
-
+let unflatten_board (b : position) : figure option list list = unflatten 8 b
+let flatten_board (b : figure option list list) : position = List.flatten b
 (**returns a pair row * col for a position on a flat board
 row = pos / 8, col = pos mod 8*)
 let unflatten_pos (pos : int) = pos / 8, pos mod 8
@@ -373,7 +375,7 @@ let (let*) = ExceptionMonad.catch
 (**  returns a list of squares attacked by the figure at pos  *)
 let attacked_positions (b : board) (pos : int) : (int * int) list = 
   match List.nth (get_board b) pos with
-  | None -> failwith "can't chose empty square"
+  | None -> failwith "can't chose empty square (attacked)"
   | Some fig ->
     begin match fig with
     | c, Pawn     -> pawn_attacks        b pos c
@@ -473,7 +475,7 @@ let int_of_letter (c : char) : int =
   | 'f' -> 5
   | 'g' -> 6
   | 'h' -> 7
-  | _ -> failwith "wrong char given"
+  | c -> failwith ("wrong char given " ^ String.make 1 c)
   
 let letter_of_int (i : int) : char = 
   match i with
@@ -485,7 +487,7 @@ let letter_of_int (i : int) : char =
   | 5 -> 'F'
   | 6 -> 'G'
   | 7 -> 'H'
-  | _ -> failwith "wrong int given"
+  | i -> failwith ("wrong int given " ^ string_of_int i)
 let int_of_num (c : char) : int = 
   match c with
   | '1' -> 1
@@ -505,6 +507,7 @@ let pos_to_int (pos : string) =
   String.get pos 0 |> int_of_letter, String.get pos 1 |> int_of_num 
   with
   | Invalid_argument s -> raise (WrongPos s)
+  | _ -> failwith ("something wrong with pos: " ^pos)
   in
   if n < 1 || n > 8 then failwith "numer in the wrong range" else
   flatten_pos (8 - n) l
@@ -685,19 +688,24 @@ let print_list_list (to_str : 'a -> string) (xss : 'a list list) : unit =
   
 
 let  possible_moves_helper (board : board) (pos : int) : (int * int) list = 
-  let moves = match List.nth (get_board board) pos with 
-  | None -> failwith "can't chose empty square"
-  | Some fig ->
-    begin match fig with
-    | White, Pawn -> possible_for_wpawn  board pos
-    | Black, Pawn -> possible_for_bpawn  board pos
-    | _ , Rook    -> possible_for_rook   board pos
-    | _, Knight   -> possible_for_knight board pos
-    | _, Bishop   -> possible_for_bishop board pos
-    | _, King     -> possible_for_king   board pos
-    | _, Queen    -> possible_for_queen  board pos
+  let b,turn,_,_ = board in 
+  let moves = match List.nth b pos with 
+  | None -> [] (*failwith "can't chose empty square poss_moves"*)
+  | Some (c,f) when c = turn ->
+    begin match f with
+    | Pawn -> 
+      begin match c with
+      | White  -> possible_for_wpawn  board pos
+      | Black  -> possible_for_bpawn  board pos
+      end
+    | Rook     -> possible_for_rook   board pos
+    | Knight   -> possible_for_knight board pos
+    | Bishop   -> possible_for_bishop board pos
+    | King     -> possible_for_king   board pos
+    | Queen    -> possible_for_queen  board pos
     (*filtrowac jesli ruch mialby spowodowac szach na naszym królu*)
     end
+  | Some _ -> []
   in moves
 
 let is_valid (b,t,castle,e : board) (curr_pos : int) (go_to : int) = 
@@ -804,8 +812,8 @@ let is_draw ({board;repetitions;no_takes_counter;_} : game_state) : bool =
 
 (* promocje mozna zamienic zeby zwracalo funckje do ktorej przekaze sie fugure zeby moze lepiej wygladalo 
 grajac w utopie *)
-let code_board (b,_,_,_ : board) (curr_pos : int) (_ : int) =
-  let figure = List.nth b curr_pos |> Option.get |> snd |> piece_to_string in figure
+let code_board (_b,_,_,_ : board) (_curr_pos : int) (_ : int) = ""
+  (* let figure = List.nth b curr_pos |> Option.get |> snd |> piece_to_string in figure *)
 (* potrzeba:
 is check
 is_checkmate
@@ -947,3 +955,100 @@ let show_board (g : game) =
 zobrist hashing
 transposition tables
 *)
+
+
+let switch_turn = (!!)
+
+let show_fake_board (board : position) = 
+  let str_board = board |> unflatten_board |> list_list_map fig_to_string  |> add_markings in 
+  List.fold_left (fun acc row -> acc ^ List.fold_left (fun acc' x -> acc' ^ x) "" row ^ "\n") "" str_board
+
+let move_board b p1 p2 = 
+  let artificial_game = Playing {board = b; repetitions = Hashtbl.create 2; no_takes_counter = 0; coding = [""]}
+  in move p1 p2 artificial_game
+  |> game_to_board
+
+let is_my_color (b : position) (c : color) (s : string) : bool = 
+  let pos = pos_to_int s in
+  match List.nth b pos with 
+  | None -> false
+  | Some (c',_) -> c = c'
+
+let get_possible_squares (b : board) (s : string) = 
+  let p = pos_to_int s in
+  possible_moves b p 
+  |> List.map (fun (r,c) -> flatten_pos r c)
+  |> List.map int_to_pos
+
+let get_attacking_squares (b : board) (s : string) = 
+  let p = pos_to_int s in
+  possible_moves b p 
+  |> List.map (fun (r,c) -> flatten_pos r c)
+
+(*returns a list of squares to highlight 0 - A8, 7 - H8, 63 - H1 *)
+let highlight_squares (s : string) (gm : game) : int list = 
+  let p = pos_to_int s in
+  match gm with
+  | Win _ | Draw -> failwith "game ended can highlight"
+  | Playing {board; _} -> 
+    possible_moves board p
+    |> List.map (fun (r,c) -> flatten_pos r c)
+
+let game_to_fen (g : game) = 
+  (* returns only the board info in fen coding without turn info and castling rights *)
+  let transform_row (r : square list) = 
+    let rec it r count acc = 
+      match r with
+      | [] -> if count = 0 then acc else acc ^ string_of_int count
+      | x :: xs -> 
+        match x with
+        | None -> it xs (count + 1) acc
+        | Some (c,f) -> 
+          let piece_part = 
+            match c with 
+            | White -> piece_to_string f
+            | Black -> String.lowercase_ascii (piece_to_string f)
+          in
+          let count_part = 
+            if count = 0 then "" else string_of_int count in
+          it xs 0 (acc ^ count_part ^  piece_part)
+          
+    in it r 0 ""
+  in
+  let b,_,_,_ = game_to_board g in 
+  let rows = unflatten_board b in 
+  String.concat "/" (List.map transform_row rows)
+
+
+let fen_to_board (fen : string) : position = 
+  let transform_char (c : char) = 
+    match c with
+    | 'P' -> Some (White, Pawn  ) :: []
+    | 'N' -> Some (White, Knight) :: []
+    | 'B' -> Some (White, Bishop) :: []
+    | 'R' -> Some (White, Rook  ) :: []
+    | 'Q' -> Some (White, Queen ) :: []
+    | 'K' -> Some (White, King  ) :: []
+
+    | 'p' -> Some (Black, Pawn  ) :: []
+    | 'n' -> Some (Black, Knight) :: []
+    | 'b' -> Some (Black, Bishop) :: []
+    | 'r' -> Some (Black, Rook  ) :: []
+    | 'q' -> Some (Black, Queen ) :: []
+    | 'k' -> Some (Black, King  ) :: []
+
+    | _ -> let i = c |> int_of_num in List.init i (fun _ -> None)
+  in
+  let transform_row (r : string) = 
+    String.fold_right (fun c acc -> 
+      transform_char c @ acc) r []
+  in 
+
+  let rows = String.split_on_char '/' fen in 
+  rows |> List.map transform_row  |> flatten_board
+
+
+let print_position (p : position) = 
+  let _,_,cast,_ = init_board () in 
+  let fake_board = (p,White,cast, None) in
+  print_board fake_board

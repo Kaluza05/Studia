@@ -1,0 +1,28 @@
+(library
+ (name network)
+ (modules network)
+
+ (flags (:standard -warn-error -a))
+ (libraries unix)
+)
+ 
+(library
+ (name logic)
+ 
+ (flags (:standard -warn-error -a))
+ (modules logic)
+)
+
+(executable
+ (name server)
+ (modules server)
+ (flags (:standard -warn-error -a))
+ (libraries network lwt lwt.unix logic)
+)
+
+(executable
+ (name client)
+ (modules client)
+ (flags (:standard -warn-error -a))
+ (libraries network  graphics lwt lwt.unix logic imagelib imagelib.unix)
+)

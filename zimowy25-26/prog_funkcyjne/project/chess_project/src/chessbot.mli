@@ -9,3 +9,5 @@ val move_player : string -> string -> bot_game -> bot_game
 val game_with_bot : color -> int -> bot_game
 
 val bot_game_to_game : bot_game -> game
+
+val print_bot_game : bot_game -> unit

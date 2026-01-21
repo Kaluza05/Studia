@@ -12,11 +12,7 @@ type state =
   | Idle
   | Playing of turn
 
-type player_info = 
-    {player_id  : player_id;
-    sock : sock;
-    mutable state : state;
-    mutable gen : int}
+
 
 type command =
   | Join
@@ -41,14 +37,19 @@ type parsed =
 
 
 
-type bot_session_info = {session_id : session_id; bot_game : bot_game ; turn : turn} 
+type bot_session_info = {session_id : session_id; bot_game : bot_game} 
 type session_info = {session_id : session_id; game : game ; turn : turn}    
+
 (*turn = 1 if it's player one's turn, turn = 0 if it's player two's turn*)
 (*maybe it's unnecessary if we but player in a continuation so he won't be able to do anyting*)
 type bot_sesssion    = {player : player_info; b_session : bot_session_info}
-type players_session = {player_1 : player_info; player_2 : player_info; p_session : session_info}
-
-type session = 
+and players_session = {player_1 : player_info; player_2 : player_info; p_session : session_info}
+and player_info = 
+    {player_id  : player_id;
+    sock : sock;
+    mutable curr_game : session option;
+    mutable state : state}
+and session = 
   | Player of players_session
   | Bot    of bot_sesssion
 
@@ -129,7 +130,7 @@ let string_of_queue (to_str : 'a -> string) (q : 'a Queue.t) = q |> Queue.to_seq
 
 
 let create_bot_session (p : player_info) (i,c) : session = 
-  let new_game = {session_id = give_sess_id (); bot_game = game_with_bot c i; turn = match c with | White -> P2 | Black -> P1} in
+  let new_game = {session_id = give_sess_id (); bot_game = game_with_bot c i} in
   (* if bot color is white then he will already make a move *)
   let new_session =  Bot {player = p; b_session = new_game} in
   Hashtbl.add sessions new_game.session_id new_session;
@@ -184,7 +185,7 @@ let rec choose_game_action p (g : game) (cont : command -> ans) =
           output_string p.sock ("Possible moves from pos\n" ^ highlight_move_string pos g) 
           (fun () -> choose_game_action p g cont) 
         | Parsed Help ->
-          output_string p.sock "Commands: move | resign | highlight p | all moves\n"
+          output_string p.sock "Commands: move | resign | highlight\n"
           (fun () -> choose_game_action p g cont)
         | Parsed (Move(curr,go)) -> cont (Move(curr,go))
         | _ -> 
@@ -192,7 +193,7 @@ let rec choose_game_action p (g : game) (cont : command -> ans) =
           (fun () -> choose_game_action p g cont)
               ))
 
-let rec play_game game cont = 
+let make_move game cont = 
   (* switching between continuations asking for a move of P1 then continuation with move for P2 then repeat *)
   (* or asking for P1 move then continuation for play_game with move P2 *)
   let p1,p2,gm,turn = game.player_1, game.player_2, game.p_session.game, game.p_session.turn in
@@ -219,9 +220,13 @@ let rec play_game game cont =
         | Move (curr,go) -> move curr go gm
         | _ -> failwith "impossible case"
       in
-      let new_state = {player_1=p1;player_2=p2;
+      let new_state = Player{player_1=p1;player_2=p2;
                       p_session = {session_id = game.p_session.session_id;game = new_game;turn = update_turn turn}} 
-    in play_game new_state cont))
+      in
+      p1.curr_game <- Some(new_state);
+      p2.curr_game <- Some(new_state);
+      cont ()
+      ))
     else 
       output_string p2.sock ("Your move, current board\n" ^ show_board gm ^ "What do you wanna do:") (fun () ->
       choose_game_action p2 gm (fun action ->
@@ -231,32 +236,18 @@ let rec play_game game cont =
         | Move (curr,go) -> move curr go gm
         | _ -> failwith "impossible case"
       in
-      let new_state = {player_1=p1;player_2=p2;
+      let new_state = Player{player_1=p1;player_2=p2;
                       p_session = {session_id = game.p_session.session_id;game = new_game;turn = update_turn turn}} 
-    in play_game new_state cont))
+      in
+      p1.curr_game <- Some(new_state);
+      p2.curr_game <- Some(new_state);
+      cont ()
+    ))
 
       (* wziac ruch do wykonania, zaaktualizowac wszystko potrzebne, uruchomic kontynuacje *)
 
 
-let start_game (game : session) cont = 
-  match game with
-  | Bot game -> 
-    let p,c = game.player, !!(bot_color game.b_session.bot_game) in
-    p.state <- Playing (match c with | White -> P1 | Black -> P2);
-    output_string p.sock ("Bot game started. You play "^ color_to_string c ^ ".\n") (fun () ->
-      play_bot_game game (fun () -> cont ()))
-  | Player game ->
-    let p1, p2 = game.player_1, game.player_2 in
-    p1.state <- Playing P1;
-    p2.state <- Playing P2;
-
-    output_string p1.sock "Game found. You play white.\n" (fun () ->
-    output_string p2.sock "Game found. You play black.\n" (fun () ->
-      play_game game (fun () -> cont ())
-        (* po zakończeniu wracamy do menu *)
-        ))
-
-let try_start_game cont_success cont_fail = 
+let try_start_game () = 
   if Queue.length queue_to_play >= 2 then 
     begin
     let p1 = Queue.pop queue_to_play in
@@ -264,34 +255,36 @@ let try_start_game cont_success cont_fail =
 
     let session = create_session p1 p2 in
       (* wyciągnij p1, p2 z player_loopa jeśli w nim są *)
-    start_game session (fun () -> cont_success p1 p2 ())
+    p1.state <- Playing P1;
+    p2.state <- Playing P2;
+    p1.curr_game <- Some(session);
+    p2.curr_game <- Some(session);
     end 
-    else
-    cont_fail ()
+    else ()
 
-let try_bot_game p (i,c) cont = 
+let try_bot_game p (i,c) = 
   match p.state with
-  | InQueue | Playing _ -> cont ()
+  | InQueue | Playing _ -> ()
   | Idle -> 
     let session = create_bot_session p (i,c) in
-      start_game session (fun () -> 
-        p.state <- Idle;
-        cont ())
+    p.state     <- Playing (match !!c with White -> P1 | Black -> P2);
+    p.curr_game <- Some(session)
 
 
-let join_queue (player : player_info) cont_success cont_fail = 
-  match player.state with
+let join_queue (player : player_info) = 
+  (match player.state with
   | InQueue ->
-      output_string player.sock "You are already in queue\n" cont_fail
+      output_string player.sock "You are already in queue\n" exit
   
   | Playing _->
-      output_string player.sock "You are already in a game\n" cont_fail
+      output_string player.sock "You are already in a game\n" exit
   
   | Idle ->
       Queue.push player queue_to_play;
       player.state <- InQueue;
-      output_string player.sock "Joined queue. Waiting for opponent...\n" (fun () ->
-        try_start_game cont_success cont_fail)
+      output_string player.sock "Joined queue. Waiting for opponent...\n" exit
+  )
+  |> ignore
 
 let leave_queue (player : player_info) cont = 
   match player.state with
@@ -308,30 +301,53 @@ let leave_queue (player : player_info) cont =
 let show_queue (player : player_info) cont = 
     output_string player.sock "" cont
 
-let rec loop_for_player ?(first = false) (p : player_info) () = 
-  let my_gen = p.gen in 
-  print_endline ("NEW LOOP for player " ^ string_of_int p.player_id);
-    let mess = if first then
+let handle_bot_game (s : bot_sesssion) _ =
+  let _, _ = s.player, s.b_session in 
+  failwith "for later, cant even test it properly"
+let handle_game (s : players_session) cont = make_move  s cont
+
+
+
+let  handle_queue p cont = 
+  let mess = "Current game queue : " ^ string_of_queue (fun q -> string_of_int q.player_id) queue_to_play ^ 
+    "\nInput What you want to do, if you don't know type \"help\": "
+  in
+  output_string p.sock mess (fun () ->
+  input_line p.sock (fun line_opt ->
+    match line_opt with
+    | None -> 
+      exit ()
+    | Some s ->
+      begin match parse_line s with
+      | Parsed Help -> 
+        let mess = "List of possible commands:\n
+        leave - leaves curent queue, if you are currently in a queue\n
+        help - Lists every command avalible\n"
+        in
+        output_string p.sock mess cont
+      | Parsed Leave  -> 
+        leave_queue p cont
+      | _ -> cont ()
+      end
+    ))
+
+let  handle_lobby first p cont = 
+  let mess = if first then
     "Here's your id: " ^ string_of_int p.player_id ^ 
     "\nHere's current game queue : " ^ string_of_queue (fun q -> string_of_int q.player_id) queue_to_play ^ 
     "\nInput What you want to do, if you don't know type \"help\": "
     else 
     "Current game queue : " ^ string_of_queue (fun q -> string_of_int q.player_id) queue_to_play ^ 
     "\nInput What you want to do, if you don't know type \"help\": "
-    in
-    let rec get_command mess cont = 
-    match p.state with
-    | Playing _ | InQueue -> exit ()
-    | Idle ->
-    output_string p.sock mess (fun () ->
-    input_line p.sock (fun line_opt ->
-      if my_gen <> p.gen then exit () else
-      match line_opt with
-      | None -> 
-        exit ()
-      | Some s ->
-    begin match parse_line s with
-    | Parsed Help -> 
+  in
+  output_string p.sock mess (fun () ->
+  input_line p.sock (fun line_opt ->
+    match line_opt with
+    | None -> 
+      exit ()
+    | Some s ->
+      begin match parse_line s with
+      | Parsed Help -> 
       let mess = "
       List of possible commands:\n
       join - joins current FILO queue\n
@@ -345,46 +361,53 @@ let rec loop_for_player ?(first = false) (p : player_info) () =
       quit - Shuts down program for yourself\n
       \n
       What do you want to do? : " in
-      get_command mess cont
+      output_string p.sock mess cont
     | Parsed (Play_bot (i,c)) ->
-      try_bot_game p (i,c) (fun () -> cont ())
+      try_bot_game p (i,c);
+      cont ()
     | Parsed Join -> 
-      let cont_success p1 p2 () =  
-        p1.state <- Idle;
-        p2.state <- Idle;
-        loop_for_player p1 () |> ignore;
-        loop_for_player p2 ()
-      in
-      join_queue p cont_success (fun () -> cont ())
+      join_queue p;
+      try_start_game ();
+      cont ()
     | Parsed Quit -> 
       output_string p.sock "Quitting program, Bye" (fun () -> 
       close p.sock;
       exit ())
-    | Parsed Leave  -> 
-      leave_queue p (fun () -> cont ())
-    | Parsed Show_queue -> show_queue p (fun () -> cont ())
+    | Parsed Show_queue -> show_queue p cont
     | Parse_error (Unknown_command s) ->
       let error_mess = "Unknown command: " ^ s ^ "\ntry again: " in
-      get_command error_mess cont;
+      output_string p.sock error_mess cont
     | Parse_error (Wrong_arity s) ->
       let error_mess = "Wrong arity: " ^ s ^ "\ntry again: " in
-      get_command error_mess cont;
+      output_string p.sock error_mess cont
     | Parse_error (Wrong_arg s) ->
       let error_mess = "Wrong arg: " ^ s ^ "\ntry again: " in
-      get_command error_mess cont;
+      output_string p.sock error_mess cont
     | _ -> 
       let error_mess = "something went wrong with your command or wrong command, try again\n" in
-      get_command error_mess cont;
+      output_string p.sock error_mess cont
     end))
-    in
-    
-    get_command mess (fun () -> loop_for_player p ())
 
+(* now in handle game we only need to make one move to come back to the player loop *)
+let rec loop_for_player ?(first = false) (p : player_info) = 
+    match p.state with
+    | Playing t -> 
+      begin match p.curr_game with
+      | Some(Bot s) -> handle_bot_game s (fun () -> loop_for_player p)
+      | Some(Player s) when s.p_session.turn = t ->
+        handle_game s (fun () -> loop_for_player p)
+      | Some(Player s) when s.p_session.turn <> t ->
+        output_string p.sock "not your turn" (fun () -> loop_for_player p)
+      | _ -> 
+        output_string p.sock "error : youre not currently in game\n" (fun () -> loop_for_player p)
+      end
+    | InQueue -> handle_queue p (fun () -> loop_for_player p)
+    | Idle -> handle_lobby first p (fun () -> loop_for_player p)
 
 
 let proc_client sock =
-  let player = {player_id = give_id (); sock = sock;state = Idle; gen = 0} in
-  loop_for_player ~first:true player ()
+  let player = {player_id = give_id (); sock = sock; curr_game = None; state = Idle} in
+  loop_for_player ~first:true player
     
 
 let () = establish_server ~port:1234 proc_client
@@ -398,14 +421,7 @@ albo kontynuacje oczekującą czy dołączyło się do gry*)
 
 (* zamienić na wersję asynchroniczną, zeby mozna bylo wyciagać osoby z kolejki poprzez akcję innej osoby*)
 
-(* zmienic zeby nieprawidlowy ruch nie powodowal bledu, zwracal jakis okreslony exception,
-pozniej mozna te expectiony lapac, albo zwracać game option
-i jak None to prosić znowu o input
+(* robiac try game chcemy tylko zmienic status osob i stworzyc tą grę? *)
 
-let move_opt = ...*)
-
-
-(* dodać osobny jjakiś maly test serwera na przechwytywanie wiadomosci od klienta i przekazywanie do innego
-poprzez output_string input_string *)
-
-(* po stronie klienta sama interakcja z UI i serwerem, czyli wybieranie pól itp. *)
+(* czy jak się da zacząć tą grę i tam obsługiwać te osoby, żeby nie mogły nic inputować bo musialby czekać na input 
+odpowiedniego gracza *)

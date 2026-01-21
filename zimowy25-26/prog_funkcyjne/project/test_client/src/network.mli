@@ -9,4 +9,8 @@ val close : sock -> unit
 
 val exit : unit -> ans
 
+val spawn : (unit -> ans) -> unit
+
 val establish_server : port:int -> (sock -> ans) -> unit
+
+val connect : string -> int -> sock

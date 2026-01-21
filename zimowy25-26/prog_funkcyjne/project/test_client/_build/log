@@ -1,0 +1,61 @@
+# dune build
+# OCAMLPARAM: unset
+# Shared cache: enabled-except-user-rules
+# Shared cache location: /home/kkalu/.cache/dune/db
+# Workspace root:
+# /mnt/c/Users/kkalu/Studia/zimowy25-26/prog_funkcyjne/project/test_client
+# Auto-detected concurrency: 8
+# Dune context:
+#  { name = "default"
+#  ; kind = "default"
+#  ; profile = Dev
+#  ; merlin = true
+#  ; fdo_target_exe = None
+#  ; build_dir = In_build_dir "default"
+#  ; instrument_with = []
+#  }
+$ /home/kkalu/.opam/project-switch/bin/ocamlc.opt -config > /tmp/dune_48cc39_output
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -bin-annot -I src/.logic.objs/byte -no-alias-deps -opaque -o src/.logic.objs/byte/logic.cmo -c -impl src/logic.ml)
+> File "src/logic.ml", lines 149-150, characters 0-32:
+> 149 | (**returns a pair row * col for a position on a flat board
+> 150 | row = pos / 8, col = pos mod 8*)
+> Warning 50 [unexpected-docstring]: ambiguous documentation comment
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -bin-annot -I src/.network.objs/byte -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -no-alias-deps -opaque -o src/.network.objs/byte/network.cmi -c -intf src/network.mli)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -a -o src/logic.cma src/.logic.objs/byte/logic.cmo)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -bin-annot -I src/.client.eobjs/byte -I /home/kkalu/.opam/project-switch/lib/bytes -I /home/kkalu/.opam/project-switch/lib/checkseum/ocaml -I /home/kkalu/.opam/project-switch/lib/decompress/de -I /home/kkalu/.opam/project-switch/lib/decompress/zl -I /home/kkalu/.opam/project-switch/lib/graphics -I /home/kkalu/.opam/project-switch/lib/imagelib -I /home/kkalu/.opam/project-switch/lib/imagelib/unix -I /home/kkalu/.opam/project-switch/lib/lwt -I /home/kkalu/.opam/project-switch/lib/lwt/unix -I /home/kkalu/.opam/project-switch/lib/ocaml/threads -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -I /home/kkalu/.opam/project-switch/lib/ocplib-endian -I /home/kkalu/.opam/project-switch/lib/ocplib-endian/bigstring -I /home/kkalu/.opam/project-switch/lib/optint -I /home/kkalu/.opam/project-switch/lib/stdlib-shims -I src/.logic.objs/byte -I src/.network.objs/byte -no-alias-deps -opaque -o src/.client.eobjs/byte/dune__exe__Client.cmi -c -intf src/client.mli)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -bin-annot -I src/.network.objs/byte -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -cmi-file src/.network.objs/byte/network.cmi -no-alias-deps -opaque -o src/.network.objs/byte/network.cmo -c -impl src/network.ml)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -bin-annot -I src/.server.eobjs/byte -I /home/kkalu/.opam/project-switch/lib/bytes -I /home/kkalu/.opam/project-switch/lib/lwt -I /home/kkalu/.opam/project-switch/lib/lwt/unix -I /home/kkalu/.opam/project-switch/lib/ocaml/threads -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -I /home/kkalu/.opam/project-switch/lib/ocplib-endian -I /home/kkalu/.opam/project-switch/lib/ocplib-endian/bigstring -I src/.logic.objs/byte -I src/.network.objs/byte -no-alias-deps -opaque -o src/.server.eobjs/byte/dune__exe__Server.cmi -c -intf src/server.mli)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -I src/.network.objs/byte -I src/.network.objs/native -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -cmi-file src/.network.objs/byte/network.cmi -no-alias-deps -opaque -o src/.network.objs/native/network.cmx -c -impl src/network.ml)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlc.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -a -o src/network.cma src/.network.objs/byte/network.cmo)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -I src/.client.eobjs/byte -I src/.client.eobjs/native -I /home/kkalu/.opam/project-switch/lib/bytes -I /home/kkalu/.opam/project-switch/lib/checkseum/ocaml -I /home/kkalu/.opam/project-switch/lib/decompress/de -I /home/kkalu/.opam/project-switch/lib/decompress/zl -I /home/kkalu/.opam/project-switch/lib/graphics -I /home/kkalu/.opam/project-switch/lib/imagelib -I /home/kkalu/.opam/project-switch/lib/imagelib/unix -I /home/kkalu/.opam/project-switch/lib/lwt -I /home/kkalu/.opam/project-switch/lib/lwt/unix -I /home/kkalu/.opam/project-switch/lib/ocaml/threads -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -I /home/kkalu/.opam/project-switch/lib/ocplib-endian -I /home/kkalu/.opam/project-switch/lib/ocplib-endian/bigstring -I /home/kkalu/.opam/project-switch/lib/optint -I /home/kkalu/.opam/project-switch/lib/stdlib-shims -I src/.logic.objs/byte -I src/.logic.objs/native -I src/.network.objs/byte -I src/.network.objs/native -cmi-file src/.client.eobjs/byte/dune__exe__Client.cmi -no-alias-deps -opaque -o src/.client.eobjs/native/dune__exe__Client.cmx -c -impl src/client.ml)
+> File "src/client.ml", line 6, characters 5-11:
+> 6 | open Images
+>          ^^^^^^
+> Error: Unbound module Images
+[2]
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -I src/.logic.objs/byte -I src/.logic.objs/native -cmi-file src/.logic.objs/byte/logic.cmi -no-alias-deps -opaque -o src/.logic.objs/native/logic.cmx -c -impl src/logic.ml)
+> File "src/logic.ml", lines 149-150, characters 0-32:
+> 149 | (**returns a pair row * col for a position on a flat board
+> 150 | row = pos / 8, col = pos mod 8*)
+> Warning 50 [unexpected-docstring]: ambiguous documentation comment
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -a -o src/network.cmxa src/.network.objs/native/network.cmx)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -I src/.server.eobjs/byte -I src/.server.eobjs/native -I /home/kkalu/.opam/project-switch/lib/bytes -I /home/kkalu/.opam/project-switch/lib/lwt -I /home/kkalu/.opam/project-switch/lib/lwt/unix -I /home/kkalu/.opam/project-switch/lib/ocaml/threads -I /home/kkalu/.opam/project-switch/lib/ocaml/unix -I /home/kkalu/.opam/project-switch/lib/ocplib-endian -I /home/kkalu/.opam/project-switch/lib/ocplib-endian/bigstring -I src/.logic.objs/byte -I src/.logic.objs/native -I src/.network.objs/byte -I src/.network.objs/native -cmi-file src/.server.eobjs/byte/dune__exe__Server.cmi -no-alias-deps -opaque -o src/.server.eobjs/native/dune__exe__Server.cmx -c -impl src/server.ml)
+> File "src/server.ml", line 5, characters 60-84:
+> 5 | type session = {player_1 : player_id; player_2 : player_id; session_id : session_id; game : Logic.game}
+>                                                                 ^^^^^^^^^^^^^^^^^^^^^^^^
+> Warning 69 [unused-field]: record field session_id is never read.
+> (However, this field is used to build or mutate values.)
+>
+> File "src/server.ml", line 49, characters 2-50:
+> 49 |   val iter   : (id -> output -> unit) -> t -> unit
+>        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> Warning 32 [unused-value-declaration]: unused value iter.
+>
+> File "src/server.ml", line 51, characters 2-25:
+> 51 |   val cardinal : t -> int
+>        ^^^^^^^^^^^^^^^^^^^^^^^
+> Warning 32 [unused-value-declaration]: unused value cardinal.
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -a -o src/logic.cmxa src/.logic.objs/native/logic.cmx)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -shared -linkall -I src -o src/network.cmxs src/network.cmxa)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -shared -linkall -I src -o src/logic.cmxs src/logic.cmxa)
+$ (cd _build/default && /home/kkalu/.opam/project-switch/bin/ocamlopt.opt -w @1..3@5..28@31..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -a -g -o src/server.exe /home/kkalu/.opam/project-switch/lib/ocaml/unix/unix.cmxa src/network.cmxa /home/kkalu/.opam/project-switch/lib/lwt/lwt.cmxa /home/kkalu/.opam/project-switch/lib/ocplib-endian/ocplib_endian.cmxa /home/kkalu/.opam/project-switch/lib/ocplib-endian/bigstring/ocplib_endian_bigstring.cmxa /home/kkalu/.opam/project-switch/lib/ocaml/threads/threads.cmxa /home/kkalu/.opam/project-switch/lib/lwt/unix/lwt_unix.cmxa -I /home/kkalu/.opam/project-switch/lib/lwt/unix src/logic.cmxa src/.server.eobjs/native/dune__exe__Server.cmx)
