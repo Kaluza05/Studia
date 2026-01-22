@@ -556,10 +556,11 @@ let try_castle (b,t,castle_rights,_ : board) (curr_pos : int) (go_to : int) =
     and _',col' = unflatten_pos go_to
     in if abs(col' - col) = 2 then  
       let b = insert_at_n b (Some(t,King)) go_to in 
-      let rook_go = if col' = 6 then curr_pos else curr_pos - 1 in
-      let rook_pos = if col' = 6 then curr_pos + 3 else curr_pos - 4 in
+      let rook_go = if col' = 6 then curr_pos  + 1 else curr_pos - 1 in      (*position for rook to go on*)
+      let rook_pos = if col' = 6 then curr_pos + 3 else curr_pos - 4 in (*ruccent rook pos*)
       let b = insert_at_n b (Some(t,Rook)) rook_go in
       let b = insert_at_n b None rook_pos in
+      let b = insert_at_n b None curr_pos in
       let castle_rights = match t with
       | White -> {
         white_kingside = false; 
@@ -1052,3 +1053,5 @@ let print_position (p : position) =
   let _,_,cast,_ = init_board () in 
   let fake_board = (p,White,cast, None) in
   print_board fake_board
+
+let is_piece (b : position) (p : int) = List.nth b p |> Option.is_some

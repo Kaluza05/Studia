@@ -3,12 +3,6 @@ open Logic
 open Lwt.Syntax
 open Lwt.Infix
 
-open Images
-open Png
-
-let img =
-  let png = Png.load "knight.png" [] in
-  Images.Rgb24 png
 
 let tile_size = 60
 

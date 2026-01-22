@@ -26,3 +26,17 @@
  (flags (:standard -warn-error -a))
  (libraries network  graphics lwt lwt.unix logic imagelib imagelib.unix)
 )
+
+(executable
+ (name client_tsdl)
+ (modules client_tsdl)
+ (flags (:standard -warn-error -a))
+ (libraries network lwt lwt.unix logic tsdl tsdl-image tsdl-ttf)
+)
+
+(executable
+ (name new_version)
+ (modules new_version)
+ (flags (:standard -warn-error -a))
+ (libraries network lwt lwt.unix logic tsdl tsdl-image tsdl-ttf)
+)
