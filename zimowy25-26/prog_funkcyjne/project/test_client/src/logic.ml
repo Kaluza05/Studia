@@ -12,12 +12,14 @@ type board = position * color * castle_rights  * ((color * int) option)
 
 (*board, turn, white castle queen/king side, black castle, enpassant column*)
 type repetition_tracker = (int64,int) Hashtbl.t
+type no_takes_counter = int
+type coding = string list
 
 type game_state = {
   board : board;
   repetitions : repetition_tracker;
-  no_takes_counter : int;
-  coding : string list;
+  no_takes_counter : no_takes_counter;
+  coding : coding;
 }
 (* remove the coding in chessbot so it runs faster *)
 
@@ -406,13 +408,24 @@ let is_check (b : board) (t : color) =
   let k_pos = king_pos (get_board b) t in
   is_attacked b k_pos !!t
 
+let locate_figure (b,_,_,_ : board) (f : figure) = 
+  let rec it i b = 
+    match b with
+    | [] -> failwith "no fugure like that"
+    | Some x :: _ when x = f -> i
+    | _ :: b -> it (i+1) b
+  in it 0 b
 
+let make_range (a : int) (b : int) = if a < b then List.init (b-a + 1) ((+) a) else []
 
 let can_castle_kingside (brd : board) (col : color) : bool =
   let b,t,castle_rights,_ = brd in 
-  (* hardcoded positions where the figures are *)
+  let king_pos = locate_figure brd (col,King) in 
+  (* calculate neccessary positions*)
   match col with
-  | White -> List.for_all (fun i -> not (is_attacked brd i !!t)) [60;61;62] 
+  | White -> 
+  let king_traverse = make_range king_pos 62 in (*list of squares on which the king will step from king pos to g1 to 62*)
+  List.for_all (fun i -> not (is_attacked brd i !!t)) king_traverse 
     && castle_rights.white_kingside && 
     begin match List.nth b 60 , List.nth b 61, List.nth b 62, List.nth b 63 with
     | Some(White,King), None,None,Some(White,Rook) -> true
@@ -592,43 +605,46 @@ let try_promotion (b,t,c,_ : board) (curr_pos : int) (go_to : int) (promo : piec
   else None
 
 let update_regular_move (b,t,castle_rights,_ : board) (curr_pos : int) (go_to : int) = 
+  let castle_rights = 
+    match List.nth b go_to with
+    | None -> castle_rights
+    | Some (White,Rook) -> 
+      
+      if go_to = 56 then 
+        {castle_rights with white_queenside = false}
+      else if go_to = 63 then 
+        {castle_rights with white_kingside = false}
+      else castle_rights
+    | Some (Black,Rook) -> 
+      if go_to = 0 then
+        {castle_rights with black_queenside = false}
+      else if go_to = 7 then
+        {castle_rights with black_kingside = false}
+      else castle_rights
+    | _ -> castle_rights
+    
+    in
   match List.nth b curr_pos with
   | None -> failwith "not possible case"
   | Some(_,f) ->
     let castle_rights = match t,f with
-    | White, King -> {
+    | White, King -> {castle_rights with 
       white_kingside = false;
-      white_queenside = false; 
-      black_kingside = castle_rights.black_kingside;
-      black_queenside = castle_rights.black_queenside}
-    | Black, King -> {
-      white_kingside = castle_rights.white_kingside; 
-      white_queenside = castle_rights.white_queenside; 
+      white_queenside = false}
+    | Black, King -> {castle_rights with 
       black_kingside = false;
       black_queenside = false}
     | White, Rook -> 
       if curr_pos = 56 then 
-      {white_kingside = castle_rights.white_kingside;
-      white_queenside = false; 
-      black_kingside = castle_rights.black_kingside;
-      black_queenside = castle_rights.black_queenside}
-      else if curr_pos = 63 then 
-      {white_kingside = false;
-      white_queenside = castle_rights.white_queenside; 
-      black_kingside = castle_rights.black_kingside;
-      black_queenside = castle_rights.black_queenside} 
+        {castle_rights with white_queenside = false}
+      else if curr_pos = 63 then
+        {castle_rights with white_kingside = false} 
       else castle_rights
     | Black, Rook -> 
-      if curr_pos = 0 then 
-      {white_kingside = castle_rights.white_kingside;
-      white_queenside = castle_rights.white_queenside; 
-      black_kingside = castle_rights.black_kingside;
-      black_queenside = false} 
+      if curr_pos = 0 then
+        {castle_rights with black_queenside = false}
       else if curr_pos = 7 then
-      {white_kingside = castle_rights.white_kingside;
-      white_queenside = castle_rights.white_queenside; 
-      black_kingside = false;
-      black_queenside = castle_rights.black_queenside} 
+        {castle_rights with black_kingside = false}
       else castle_rights(*not a castle so we cant castle no more*)
     | _ -> castle_rights
     in
@@ -995,7 +1011,7 @@ let highlight_squares (s : string) (gm : game) : int list =
     possible_moves board p
     |> List.map (fun (r,c) -> flatten_pos r c)
 
-let game_to_fen (g : game) = 
+let game_to_fen (b : position) = 
   (* returns only the board info in fen coding without turn info and castling rights *)
   let transform_row (r : square list) = 
     let rec it r count acc = 
@@ -1016,7 +1032,6 @@ let game_to_fen (g : game) =
           
     in it r 0 ""
   in
-  let b,_,_,_ = game_to_board g in 
   let rows = unflatten_board b in 
   String.concat "/" (List.map transform_row rows)
 
@@ -1055,3 +1070,7 @@ let print_position (p : position) =
   print_board fake_board
 
 let is_piece (b : position) (p : int) = List.nth b p |> Option.is_some
+
+
+let game_to_position (g : game) : position = 
+  let b,_,_,_ = game_to_board g in b

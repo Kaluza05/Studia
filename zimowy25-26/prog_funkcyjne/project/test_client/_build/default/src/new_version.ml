@@ -12,6 +12,7 @@ let board_size = 8 * tile_size
 
 let join_button = (200, 200, 400, 300) (* x1,y1,x2,y2 *)
 let leave_button = (200, 200, 400, 300) (* x1,y1,x2,y2 *)
+let play_self_button = (50,50,150,100)
 
 let inside (x,y) (x1,y1,x2,y2) =
   x >= x1 && x <= x2 && y >= y1 && y <= y2
@@ -87,13 +88,17 @@ let draw_rect renderer (x1, y1, x2, y2) =
   Sdl.set_render_draw_color renderer 0 0 0 255 |> ignore;  (* czarny *)
   Sdl.render_draw_rect renderer (Some rect) |> ignore
 
+let draw_button renderer font (x1,y1,x2,y2) mess = 
+  draw_rect renderer (x1,y1,x2,y2);
+  draw_text renderer font (x1 + (x2-x1)/4, (y1+y2)/2) mess
+
+
 let draw_lobby renderer =
   let font = load_font "src/pieces/ARIAL.TTF" in
   Sdl.set_render_draw_color renderer 255 255 255 255 |> ignore; (* białe tło *)
   Sdl.render_clear renderer |> ignore;
-  draw_rect renderer join_button;
-  let x1, y1, x2, y2 = join_button in
-  draw_text renderer font (x1 + (x2-x1)/4, (y1+y2)/2) "Join queue"
+  draw_button renderer font join_button "Join queue";
+  draw_button renderer font play_self_button "Play yourself"
 
 let draw_queue renderer =
   let font = load_font "src/pieces/ARIAL.TTF" in
@@ -286,14 +291,17 @@ let do_stuff input output =
 
 
   let handle_mouse_click (x,y) = 
+    Lwt.async (fun () -> Lwt_io.printl ("constant loop"));
   Lwt.catch (fun () ->
 
       (* Lwt.async (fun () -> Lwt_io.printl (Printf.sprintf "klikam tutaj: %d %d" x y)); *)
       if outside_window (x,y) then Lwt.return_unit else 
       match !state with
+      | InLobby when inside (x,y) play_self_button ->
+        add_to_send "SELF REGULAR"
       | InLobby when inside (x,y) join_button ->
           state := InQueue;
-          add_to_send "JOIN"
+          add_to_send "JOIN REGULAR"
       | InQueue when inside (x,y) leave_button -> 
           state := InLobby;
           add_to_send "LEAVE"
@@ -401,6 +409,10 @@ let do_stuff input output =
       in
       Lwt.async (fun () -> Lwt_io.printl ("my color is: " ^ c));
       init_board_ui (Logic.fen_to_board fen) my_color;
+      Lwt.async (fun () -> Lwt_io.printl ("initialized ui?"));
+      receiver ()
+    | "START" :: _ ->
+      Lwt.async (fun () -> Lwt_io.printl ("incomplete START "));
       receiver ()
     | "UPDATE" :: fen :: _ -> 
       (* Lwt.async (fun () -> Lwt_io.printl (Printf.sprintf "updating fen %s" fen)); *)

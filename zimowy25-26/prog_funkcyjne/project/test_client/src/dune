@@ -13,6 +13,30 @@
  (modules logic)
 )
 
+(library
+ (name gametype)
+ 
+ (flags (:standard -warn-error -a))
+ (modules gametype)
+ (libraries logic)
+)
+
+(library
+ (name chess960)
+ 
+ (flags (:standard -warn-error -a))
+ (modules chess960)
+ (libraries logic gametype)
+)
+
+(library
+ (name fog_of_war)
+ 
+ (flags (:standard -warn-error -a))
+ (modules fog_of_war)
+ (libraries logic)
+)
+
 (executable
  (name server)
  (modules server)
