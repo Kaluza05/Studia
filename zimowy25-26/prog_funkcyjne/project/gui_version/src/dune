@@ -1,0 +1,53 @@
+(library
+ (name logic)
+ 
+ (flags (:standard -warn-error -a))
+ (modules logic)
+)
+
+(library
+ (name gametype)
+ 
+ (flags (:standard -warn-error -a))
+ (modules gametype)
+ (libraries logic)
+)
+
+(library
+ (name chess960)
+ 
+ (flags (:standard -warn-error -a))
+ (modules chess960)
+ (libraries logic gametype)
+)
+
+(library
+ (name fogofwar)
+ 
+ (flags (:standard -warn-error -a))
+ (modules fogofwar)
+ (libraries logic gametype)
+)
+
+(library
+ (name games_combined)
+ 
+ (flags (:standard -warn-error -a))
+ (modules games_combined)
+ (libraries logic chess960 fogofwar)
+
+)
+(executable
+ (name server)
+ (modules server)
+ (flags (:standard -warn-error -a))
+ (libraries lwt lwt.unix games_combined)
+)
+
+
+(executable
+ (name client)
+ (modules client)
+ (flags (:standard -warn-error -a))
+ (libraries lwt lwt.unix logic tsdl tsdl-image tsdl-ttf)
+)

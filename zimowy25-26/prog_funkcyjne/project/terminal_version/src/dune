@@ -1,0 +1,41 @@
+(library
+ (name logic)
+ 
+ (flags (:standard -warn-error -a))
+ (modules logic)
+)
+
+(library
+ (name chessbot)
+ (modules chessbot)
+ 
+ (flags (:standard -warn-error -a))
+ (libraries logic))
+
+(library
+(name network)
+(modules network)
+
+ (flags (:standard -warn-error -a))
+(libraries unix))
+
+
+(executable
+ (name positions)
+ (modules positions)
+ 
+ (flags (:standard -warn-error -a))
+ (libraries logic))
+
+ (executable
+ (name game_queue_working)
+ (modules game_queue_working)
+ (flags (:standard -warn-error -a))
+ (libraries logic chessbot network))
+
+ 
+ (executable
+ (name game_queue_change)
+ (modules game_queue_change)
+ (flags (:standard -warn-error -a))
+ (libraries logic chessbot network))
