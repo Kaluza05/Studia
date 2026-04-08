@@ -196,9 +196,9 @@ with open('zad_input.txt','r') as inp:
     spec_c = [[int(j) for j in i.split(' ')] for i in lines[x+1:]]
 
     sol,n_moves = search_board(x,y,(spec_r,spec_c))
-    print(n_moves)
+    # print(n_moves)
 
 with open('zad_output.txt','w') as out:
     frmt_sol = '\n'.join(''.join(r) for r in sol)
-    print(frmt_sol)
+    # print(frmt_sol)
     out.write(frmt_sol)

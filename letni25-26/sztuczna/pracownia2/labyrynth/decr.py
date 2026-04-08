@@ -13,7 +13,6 @@ m   |
 '''
 DIRECTIONS = ['L','R','U','D']
 
-from random import choice
 from collections import deque
 from itertools import combinations
 #isc gdzie nie bylismy z aktualnym stanem punktow jeszcze w pierwszej kolejnosci, inaczej isc w strone nie sciany
@@ -216,11 +215,11 @@ with open('zad_input.txt','r') as inp:
     decr_path = ''
     limit = 100
     steps = 0
-    DEPTH = 3
+    DEPTH = 4
     limit2 = 200
 
     #phase 1 decrease until small amount of points remain
-    while len(pts) > 6 and steps < limit:
+    while len(pts) > 7 and steps < limit:
         d_path = decrease_uncertainity(n,m,labytynth,pts, depth= DEPTH) 
         for d in d_path:
             pts = move_pts(n,m,labytynth,pts,d)
