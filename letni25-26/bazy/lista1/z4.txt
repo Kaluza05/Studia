@@ -1,0 +1,46 @@
+(a) 
+π name, last_name, genre 
+(σ year < 1960 (movies ⨝ π last_name (directors ⨝ movies_directors) ⨝ movies_genres))
+
+(b)
+T_movies = π movie_id (movies_directors ⨝ (director_id = id) (σ first_name = 'Quentin' and last_name = 'Tarantino' directors))
+π first_name, last_name (actors ⨝ (π id actors - π actor_id (roles ⨝ T_movies)))
+
+(c)
+π first_name, last_name 
+(actors ⨝ (id = roles.actor_id) (((π actor_id roles) \ 
+(π R1.actor_id (σ (R1.movie_id != R2.movie_id) ((ρ R1 roles) ⨝ (R1.actor_id = R2.actor_id) (ρ R2 roles)))))))
+
+(d)
+ρ movie π R1.name (σ R1.genre = 'Drama' and R2.genre = 'Sci-Fi' 
+((ρ R1 (π id, name, genre (movies ⨝ movies_genres)))
+⨝ (R1.id = R2.id)
+(ρ R2 (π id, name, genre (movies ⨝ movies_genres)))))
+
+(e)
+movies ⨝  (π id movies - π M2.id σ (M1.rank > M2.rank)  ((ρ M1 movies) ⨯ (ρ M2 movies)))
+
+(f)
+π first_name,last_name (actors ⨝ (id = R1.actor_id) 
+(π R1.actor_id 
+((ρ R1 roles) 
+⨝ (R1.actor_id = R2.actor_id and (R1.role = R2.role) and (R1.movie_id != R2.movie_id)) 
+(ρ R2 roles))))
+
+(g)
+(π first_name, last_name directors) \ 
+π first_name, last_name (σ genre = 'Horror' (directors ⨝ directors_genres))
+
+(h)
+π first_name, last_name 
+(directors ⨝ (π director_id (movies_directors ⨝ 
+(π id movies \ π movie_id ((σ gender = 'F' actors) ⨝ roles)))))
+
+(i)
+π name 
+(movies 
+⨝ 
+((π id movies) 
+- 
+(π M2.id (σ (M1.year < M2.year) ((ρ M1 movies) ⨯ (ρ M2 movies))))))
+

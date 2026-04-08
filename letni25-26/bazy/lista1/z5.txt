@@ -1,0 +1,10 @@
+(a)
+checemy wiedzieć ile jest płci o danym imieniu np. Alex
+τ genders desc γ actors.first_name; count(actors.gender)
+→ genders (π first_name, gender(actors ⨝ actors.id=roles.actor_id roles))
+zmiana to robimy projekcje na first_name, gender, zeby pozbyć się niepotrzebnych informacji
+(b)
+
+Actors = π actor_id, director_id (roles ⨝ (π movie_id, director_id (movies ⨝ id = movie_id movies_directors)))
+γ first_name, last_name; count(roles.actor_id) -> cnt 
+(Actors ⨝ (director_id = id) directors)

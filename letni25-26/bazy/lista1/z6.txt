@@ -1,0 +1,17 @@
+(c)
+pi first_name,last_name 
+(actors ⨝ (id = actor_id) (σ n_movies = 1 (γ actor_id; count(movie_id) -> n_movies roles)))
+
+(e)
+max_rank = γ MAX(rank) -> max_rank movies
+(movies ⨝ movies.rank = max_rank max_rank)
+
+(f)
+π last_name
+ (actors ⨝ id = actor_id 
+ π actor_id (σ n_movies >= 2 (γ actor_id, role; count(movie_id) -> n_movies roles)))
+
+
+(i)
+Min_year = γ MIN(year) -> y movies
+π name (movies ⨝ year = y Min_year)
