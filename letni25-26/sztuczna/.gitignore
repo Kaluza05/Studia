@@ -1,5 +1,7 @@
-.txt
+*.txt
 
-.out
+*.out
 
-.pl
+*.pl
+
+venv/

@@ -139,66 +139,75 @@ def all_possibilities(row: tuple[int], spec: tuple[int]):
 
 
 
+def overlapping(row, spec):
+    row,spec = list(row),list(spec)
+    n = len(row)
 
-def simple_boxes(row,spec):
-    c1,c2 = set(),set()
-    if row[0] == 1:
-        c1 = {(i,1) for i in range(1,spec[0]-1)}
-    if row[-1] == 1:
-        c2 = {(i,1) for i in range(len(row)-spec[-1],len(row)-1)}
+    @lru_cache(None)
+    def dp(pos, spec_i):
+        if pos == n:
+            return spec_i == len(spec)
 
-    to_change = list(c1 | c2)
+        # 0
+        if row[pos] in (-1, 0):
+            if dp(pos + 1, spec_i):
+                return True
+
+        # blok
+        if spec_i < len(spec):
+            length = spec[spec_i]
+
+            if pos + length <= n:
+                ok = True
+                for i in range(length):
+                    if row[pos + i] == 0:
+                        ok = False
+                        break
+
+                if ok and pos + length < n and row[pos + length] == 1:
+                    ok = False
+
+                if ok:
+                    next_pos = pos + length + 1 if pos + length < n else pos + length
+                    if dp(next_pos, spec_i + 1):
+                        return True
+
+        return False
+
+    to_change = []
+
+    for i in range(n):
+        if row[i] != -1:
+            continue
+
+        # sprawdź czy może być 0
+        row[i] = 0
+        can_be_0 = dp(0, 0)
+
+        # sprawdź czy może być 1
+        row[i] = 1
+        dp.cache_clear()
+        can_be_1 = dp(0, 0)
+
+        row[i] = -1
+        dp.cache_clear()
+
+        if can_be_0 and not can_be_1:
+            to_change.append((i, 0))
+        elif can_be_1 and not can_be_0:
+            to_change.append((i, 1))
 
     return to_change
-    
 
-
-
-def simple_crosses(row,spec):
-    return []
-
-
-def overlapping(row,spec):
-    all_poss = all_possibilities(row,spec)
-    overlap = [{0,1} for _ in range(len(row))]
-    for p in all_poss:
-        for i,val in enumerate(p):
-            overlap[i] &= {val}
-
-    to_change = [(i,1 if ov == {1} else 0) for i,ov in enumerate(overlap) if len(ov) == 1 and row[i] == -1]
-
-    return to_change
-
-
-# print(overlapping([-1,-1,-1,-1,-1],[3]))
 
 @make_list
-@lru_cache(None)
-def spreading(row,spec):
-    return []
-@make_list
-@lru_cache(None)
-def forcing(row,spec):
-    return []
-
-
+@lru_cache
 def infer_row(row : list,spec: list):
     #returns list of positions to change, 0 is a cross, 1 is a colored box
     if sum(row) == len(row):
         return []
-    else:
-        c1 = simple_boxes(row,spec)   #if theres one on the edge you can fill it with 1's to some point
-        # row = update_row(row,c1)
-        c2 = simple_crosses(row,spec) #if there has to be a space put that space there
-        # row = update_row(row,c2)
-        c3 = overlapping(row,spec)    #if there is an overlap every square in that overlap is a 1
-        # row = update_row(row,c3)
-        c4 = spreading(row,spec)      #if a length 4 box if on index 3 we can extend it to the right
-        # row = update_row(row,c4)
-        c5 = forcing(row,spec)        #if theres a cross on 3 and we have a box 3 to place 1,2 is also a cross
-        # row = update_row(row,c5)
         
-        return c1+c2+c3+c4+c5
+    return overlapping(row,spec)
 
 
 def solve_bfs(rows,cols,spec_x,spec_y):
@@ -297,12 +306,36 @@ def choose_uncertain(rows,cols,spec_x,spec_y):
 #                     uncertains[(i,j,k)] = solve_bfs()
 #                 rows[i][j] = -1
 #                 cols[j][i] = -1
-    
 
-    
+def all_filled(rows):
+    for r in rows:
+        for c in r:
+            if c == -1:
+                return False
+    return True
+
+def choose_row(rows,cols,spec_x,spec_y):
+    row_options = [
+        len(all_possibilities(rows[i], spec_x[i])) if -1 in rows[i] else float('inf')
+        for i in range(len(rows))
+    ]
+
+    col_options = [
+        len(all_possibilities(cols[i], spec_y[i])) if -1 in cols[i] else float('inf')
+        for i in range(len(cols))
+    ]
+
+    best_row = min(range(len(rows)), key=lambda i: row_options[i])
+    best_col = min(range(len(cols)), key=lambda i: col_options[i])
+
+    if row_options[best_row] < col_options[best_col]:
+        return best_row, True
+    return best_col, False
 
 def solve_backtrack(rows,cols,spec_x,spec_y):
     #zapamietaj wprowadzone zmiany w solve_bfs zeby latwo je bylo cofnac
+    # print(*rows,sep = '\n')
+    # print()
     solve_bfs(rows,cols,spec_x,spec_y)
 
     # print("unknowns:", count_unknown(rows))
@@ -316,36 +349,41 @@ def solve_backtrack(rows,cols,spec_x,spec_y):
         # print(rows)
         return rows
     
+    if all_filled(rows):
+        return None
+    
+    #jesli nie ma -1 zadnych to skoncz:
+
+    
     #inaczej w ktoreś pole z -1 wstaw 0 albo 1
 
     #trzeba jakos na bierzaco sprawdzac czy specyfikacja nie jest zaburzona
-    uncertain = choose_uncertain(rows,cols,spec_x,spec_y)
-    
+    row_idx,is_row = choose_row(rows,cols,spec_x,spec_y)
+    # wybieramy kolumne / wiersz który ma najmniejszą ilość możliwych opcji
                 
-    
-    if uncertain is None: #no uncertains but the board is not solved
-        return None
-    
-    
-    i,j = uncertain
+    if is_row:
+        for poss in all_possibilities(rows[row_idx],spec_x[row_idx]):
+            new_rows,new_cols = my_copy(rows),my_copy(cols)
+            for j in range(len(cols)):
+                new_rows[row_idx][j] = poss[j]
+                new_cols[j][row_idx] = poss[j]
 
-    rows_copy,cols_copy = my_copy(rows),my_copy(cols)
-    rows_copy[i][j] = 0
-    cols_copy[j][i] = 0
-    result = solve_backtrack(rows_copy,cols_copy,spec_x,spec_y)
-    if result:
-        # print(result)
-        return result
-    
-    # przywroc stare rows,cols
-    rows_copy,cols_copy = my_copy(rows),my_copy(cols)
-    rows_copy[i][j] = 1
-    cols_copy[j][i] = 1
-    
-    result = solve_backtrack(rows_copy,cols_copy,spec_x,spec_y)
-    if result:
-        # print(result)
-        return result
+            res = solve_backtrack(new_rows,new_cols,spec_x,spec_y)
+            if res:
+                return res
+
+        
+    else:
+        for poss in all_possibilities(cols[row_idx],spec_y[row_idx]):
+            new_rows,new_cols = my_copy(rows),my_copy(cols)
+            for i in range(len(rows)):
+                new_rows[i][row_idx] = poss[i]
+                new_cols[row_idx][i] = poss[i]
+
+            res = solve_backtrack(new_rows,new_cols,spec_x,spec_y)
+            if res:
+                return res
+
 
     
 
